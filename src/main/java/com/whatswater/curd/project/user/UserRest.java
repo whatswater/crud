@@ -21,7 +21,7 @@ public class UserRest {
     @Produces(APPLICATION_JSON_UTF8)
     public String get(@QueryParam("userId") String userId) {
         try {
-            return userService.updateNameById();
+            return userService.deleteById();
         } catch (Exception e) {
             e.printStackTrace();
         }

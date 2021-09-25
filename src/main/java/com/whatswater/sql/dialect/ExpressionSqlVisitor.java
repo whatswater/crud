@@ -1,7 +1,6 @@
 package com.whatswater.sql.dialect;
 
 
-import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.expression.Expression.ExpressionType;
 import com.whatswater.sql.expression.FunctionExpression;
@@ -38,129 +37,165 @@ public class ExpressionSqlVisitor {
         this.params = params;
     }
 
+    // TODO visit方法添加上下文环境，处理括号问题，处理table的序列化问题
     public void visit(Expression expression) {
         ExpressionType expressionType = expression.type();
         switch (expressionType) {
             case VALUE_NUMBER:
-                NumberLiteral numberLiteral = (NumberLiteral)expression;
-                sql.append(numberToString(numberLiteral.getValue()));
+                {
+                    NumberLiteral numberLiteral = (NumberLiteral)expression;
+                    sql.append(numberToString(numberLiteral.getValue()));
+                }
                 break;
             case VALUE_STRING:
-                // TODO 对字符串进行编码
-                StringValue stringValue = (StringValue) expression;
-                sql.append("'").append(stringValue.getValue()).append("'");
+                {
+                    StringValue stringValue = (StringValue) expression;
+                    sql.append("'").append(stringValue.getValue()).append("'");
+                }
                 break;
             case VALUE_NULL:
-                sql.append("null");
+                {
+                    sql.append("null");
+                }
                 break;
             case VALUE_DATE:
-                DateValue dateValue = (DateValue) expression;
-                sql.append("'").append(dateFormat(dateValue.getValue())).append("'");
+                {
+                    DateValue dateValue = (DateValue) expression;
+                    sql.append("'").append(dateFormat(dateValue.getValue())).append("'");
+                }
                 break;
             case VALUE_DATETIME:
-                DateTimeExpression dateTimeExpression = (DateTimeExpression) expression;
-                sql.append("'").append(dateTimeFormat(dateTimeExpression.getValue())).append("'");
+                {
+                    DateTimeExpression dateTimeExpression = (DateTimeExpression) expression;
+                    sql.append("'").append(dateTimeFormat(dateTimeExpression.getValue())).append("'");
+                }
                 break;
             case JDBC_PARAMETER:
-                JdbcParameter jdbcParameter = (JdbcParameter) expression;
-                sql.append("?");
-                params.add(jdbcParameter.getValue());
+                {
+                    JdbcParameter jdbcParameter = (JdbcParameter) expression;
+                    sql.append("?");
+                    params.add(jdbcParameter.getValue());
+                }
                 break;
             case OP_ADD:
-                Addition addition = (Addition) expression;
-                sql.append("(");
-                visit(addition.getLeft());
-                sql.append(" + ");
-                visit(addition.getRight());
-                sql.append(")");
+                {
+                    Addition addition = (Addition) expression;
+                    sql.append("(");
+                    visit(addition.getLeft());
+                    sql.append(" + ");
+                    visit(addition.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_BIT_AND:
-                BitwiseAnd bitwiseAnd = (BitwiseAnd) expression;
-                sql.append("(");
-                visit(bitwiseAnd.getLeft());
-                sql.append(" & ");
-                visit(bitwiseAnd.getRight());
-                sql.append(")");
+                {
+                    BitwiseAnd bitwiseAnd = (BitwiseAnd) expression;
+                    sql.append("(");
+                    visit(bitwiseAnd.getLeft());
+                    sql.append(" & ");
+                    visit(bitwiseAnd.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_BIT_LEFT_SHIFT:
-                BitwiseLeftShift bitwiseLeftShift = (BitwiseLeftShift) expression;
-                sql.append("(");
-                visit(bitwiseLeftShift.getLeft());
-                sql.append(" << ");
-                visit(bitwiseLeftShift.getRight());
-                sql.append(")");
+                {
+                    BitwiseLeftShift bitwiseLeftShift = (BitwiseLeftShift) expression;
+                    sql.append("(");
+                    visit(bitwiseLeftShift.getLeft());
+                    sql.append(" << ");
+                    visit(bitwiseLeftShift.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_BIT_OR:
-                BitwiseOr bitwiseOr = (BitwiseOr) expression;
-                sql.append("(");
-                visit(bitwiseOr.getLeft());
-                sql.append(" | ");
-                visit(bitwiseOr.getRight());
-                sql.append(")");
+                {
+                    BitwiseOr bitwiseOr = (BitwiseOr) expression;
+                    sql.append("(");
+                    visit(bitwiseOr.getLeft());
+                    sql.append(" | ");
+                    visit(bitwiseOr.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_BIT_RIGHT_SHIFT:
-                BitwiseRightShift bitwiseRightShift = (BitwiseRightShift) expression;
-                sql.append("(");
-                visit(bitwiseRightShift.getLeft());
-                sql.append(" >> ");
-                visit(bitwiseRightShift.getRight());
-                sql.append(")");
+                {
+                    BitwiseRightShift bitwiseRightShift = (BitwiseRightShift) expression;
+                    sql.append("(");
+                    visit(bitwiseRightShift.getLeft());
+                    sql.append(" >> ");
+                    visit(bitwiseRightShift.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_BIT_XOR:
-                BitwiseXor bitwiseXor = (BitwiseXor) expression;
-                sql.append("(");
-                visit(bitwiseXor.getLeft());
-                sql.append(" ^ ");
-                visit(bitwiseXor.getRight());
-                sql.append(")");
+                {
+                    BitwiseXor bitwiseXor = (BitwiseXor) expression;
+                    sql.append("(");
+                    visit(bitwiseXor.getLeft());
+                    sql.append(" ^ ");
+                    visit(bitwiseXor.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_CONCAT:
-                Concat concat = (Concat) expression;
-                sql.append("(");
-                visit(concat.getLeft());
-                sql.append(" || ");
-                visit(concat.getRight());
-                sql.append(")");
+                {
+                    Concat concat = (Concat) expression;
+                    sql.append("(");
+                    visit(concat.getLeft());
+                    sql.append(" || ");
+                    visit(concat.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_DIV:
-                Division division = (Division) expression;
-                sql.append("(");
-                visit(division.getLeft());
-                sql.append(" / ");
-                visit(division.getRight());
-                sql.append(")");
+                {
+                    Division division = (Division) expression;
+                    sql.append("(");
+                    visit(division.getLeft());
+                    sql.append(" / ");
+                    visit(division.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_INTEGER_DIV:
-                IntegerDivision integerDivision = (IntegerDivision) expression;
-                sql.append("(");
-                visit(integerDivision.getLeft());
-                sql.append(" // ");
-                visit(integerDivision.getRight());
-                sql.append(")");
+                {
+                    IntegerDivision integerDivision = (IntegerDivision) expression;
+                    sql.append("(");
+                    visit(integerDivision.getLeft());
+                    sql.append(" // ");
+                    visit(integerDivision.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_MOD:
-                Modulo modulo = (Modulo) expression;
-                sql.append("(");
-                visit(modulo.getLeft());
-                sql.append(" % ");
-                visit(modulo.getRight());
-                sql.append(")");
+                {
+                    Modulo modulo = (Modulo) expression;
+                    sql.append("(");
+                    visit(modulo.getLeft());
+                    sql.append(" % ");
+                    visit(modulo.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_MUL:
-                Multiplication multiplication = (Multiplication) expression;
-                sql.append("(");
-                visit(multiplication.getLeft());
-                sql.append(" * ");
-                visit(multiplication.getRight());
-                sql.append(")");
+                {
+                    Multiplication multiplication = (Multiplication) expression;
+                    sql.append("(");
+                    visit(multiplication.getLeft());
+                    sql.append(" * ");
+                    visit(multiplication.getRight());
+                    sql.append(")");
+                }
                 break;
             case OP_SUB:
-                Subtraction subtraction = (Subtraction) expression;
-                sql.append("(");
-                visit(subtraction.getLeft());
-                sql.append(" - ");
-                visit(subtraction.getRight());
-                sql.append(")");
+                {
+                    Subtraction subtraction = (Subtraction) expression;
+                    sql.append("(");
+                    visit(subtraction.getLeft());
+                    sql.append(" - ");
+                    visit(subtraction.getRight());
+                    sql.append(")");
+                }
                 break;
             case RELATION_AND:
                 {
@@ -313,6 +348,12 @@ public class ExpressionSqlVisitor {
 
     public StringBuilder getSql() {
         return sql;
+    }
+
+    public StringBuilder getAndClearSql() {
+        StringBuilder originSql = sql;
+        this.sql = new StringBuilder();
+        return originSql;
     }
 
     public List<Object> getParams() {

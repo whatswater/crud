@@ -17,6 +17,7 @@ public class Update {
     private Table table;
     private final DbTable<?> dbTable;
     private BoolExpression where;
+    private Limit limit;
 
     public Update(DbTable<?> dbTable) {
         this.dbTable = dbTable;
@@ -62,6 +63,19 @@ public class Update {
     public Update where(BoolExpression where) {
         this.where = where;
         return this;
+    }
+
+    public Update limit(Limit limit) {
+        this.limit = limit;
+        return this;
+    }
+
+    public Update limit(int value) {
+        return limit(new Limit(value));
+    }
+
+    public Limit getLimit() {
+        return limit;
     }
 
     public static class UpdateColumn {

@@ -18,6 +18,10 @@ public interface Dialect {
         private String sql;
         private List<Object> params;
 
+        public SqlAndParam(String sql) {
+            this.sql = sql;
+        }
+
         public SqlAndParam(String sql, List<Object> params) {
             this.sql = sql;
             this.params = params;

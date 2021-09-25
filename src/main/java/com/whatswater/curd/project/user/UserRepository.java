@@ -1,7 +1,9 @@
 package com.whatswater.curd.project.user;
 
 
+import com.whatswater.sql.statement.Delete;
 import com.whatswater.sql.statement.Update;
+import com.whatswater.sql.table.DbTable;
 import com.whatswater.sql.table.Table;
 import io.vertx.mysqlclient.MySQLPool;
 
@@ -20,7 +22,15 @@ public class UserRepository {
         return UserTable.dbTable.toUpdate().set(UserTable.name, name).where(UserTable.idEq(id));
     }
 
+    public Delete deleteById(long id) {
+        return dbTable().toDelete(UserTable.idEq(id));
+    }
+
     public Table nameCountGroup() {
         return UserTable.dbTable.groupBy(UserTable.name).select(UserTable.id);
+    }
+
+    DbTable<User> dbTable() {
+        return UserTable.dbTable;
     }
 }

@@ -9,6 +9,7 @@ import com.whatswater.sql.statement.Insert;
 import com.whatswater.sql.statement.Query;
 import com.whatswater.sql.statement.Update;
 import com.whatswater.sql.statement.Update.UpdateColumn;
+import com.whatswater.sql.table.DbTable;
 import com.whatswater.sql.table.Table;
 import com.whatswater.sql.utils.StringUtils;
 
@@ -41,24 +42,46 @@ public class MysqlDialect implements Dialect {
 
             Expression expression = valueSet.getValue();
             sqlVisitor.visit(expression);
-            sql.append(sqlVisitor.getSql()).append(",");
-            sqlVisitor.clearSql();
+            sql.append(sqlVisitor.getAndClearSql()).append(",");
         }
         if (",".equals(sql.substring(sql.length() - 1, sql.length()))) {
             sql.deleteCharAt(sql.length() - 1);
         }
-        sql.append(" where ");
-        sqlVisitor.visit(update.getWhere());
-        sql.append(sqlVisitor.getSql());
-        sqlVisitor.clearSql();
+        if (update.getWhere() != null) {
+            sql.append(" where ");
+            sqlVisitor.visit(update.getWhere());
+            sql.append(sqlVisitor.getAndClearSql());
+        }
+        if (update.getLimit() != null) {
+            sql.append(" limit ").append(update.getLimit().getSize());
+        }
 
-        // 序列化where条件
         return new SqlAndParam(sql.toString(), sqlVisitor.getParams());
     }
 
     @Override
     public SqlAndParam toSql(Delete delete) {
-        return null;
+        StringBuilder sql = new StringBuilder();
+        sql.append("delete from ");
+        DbTable<?> dbTable = delete.getDbTable();
+
+        AliasFactory aliasFactory = new AliasFactory();
+        setTableAlias(dbTable, aliasFactory);
+
+        sql.append(dbTable.getTableName());
+        if (dbTable.hasAlias()) {
+            sql.append(" ").append(dbTable.getAlias());
+        }
+        if (delete.getWhere() != null) {
+            sql.append(" where ");
+            ExpressionSqlVisitor sqlVisitor = new ExpressionSqlVisitor();
+            sqlVisitor.visit(delete.getWhere());
+            sql.append(sqlVisitor.getAndClearSql());
+
+            return new SqlAndParam(sql.toString(), sqlVisitor.getParams());
+        }
+
+        return new SqlAndParam(sql.toString());
     }
 
     @Override

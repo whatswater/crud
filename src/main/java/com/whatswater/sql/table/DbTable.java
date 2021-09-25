@@ -5,12 +5,8 @@ import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.alias.AliasPlaceholderGetter;
-import com.whatswater.sql.statement.SelectColumn;
+import com.whatswater.sql.statement.*;
 import com.whatswater.sql.mapper.ResultMapper;
-import com.whatswater.sql.statement.Insert;
-import com.whatswater.sql.statement.OrderByElement;
-import com.whatswater.sql.statement.Query;
-import com.whatswater.sql.statement.Update;
 import com.whatswater.sql.statement.Update.UpdateColumn;
 import com.whatswater.sql.table.annotation.TableName;
 import com.whatswater.sql.utils.StringUtils;
@@ -55,6 +51,14 @@ public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
 
     public Update toUpdate(UpdateColumn... updateColumnArr) {
         return toUpdate(Arrays.asList(updateColumnArr));
+    }
+
+    public Delete toDelete() {
+        return new Delete(this);
+    }
+
+    public Delete toDelete(BoolExpression where) {
+        return new Delete(this, where);
     }
 
     public Insert<T> toInsert() {

@@ -4,7 +4,7 @@ package com.whatswater.sql.statement;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.expression.reference.JdbcParameter;
-import com.whatswater.sql.expression.reference.RawColumnRef;
+import com.whatswater.sql.expression.reference.RawColumnReference;
 import com.whatswater.sql.table.DbTable;
 import com.whatswater.sql.table.JoinType;
 import com.whatswater.sql.table.Table;
@@ -24,7 +24,7 @@ public class Update {
         this.table = dbTable;
     }
 
-    public Update set(RawColumnRef sqlColumn, Expression value) {
+    public Update set(RawColumnReference sqlColumn, Expression value) {
         if (!dbTable.equals(sqlColumn.getTable())) {
             throw new RuntimeException("X3");
         }
@@ -37,7 +37,7 @@ public class Update {
         return this;
     }
 
-    public Update set(RawColumnRef sqlColumn, Object value) {
+    public Update set(RawColumnReference sqlColumn, Object value) {
         return set(sqlColumn, new JdbcParameter(value));
     }
 
@@ -79,15 +79,15 @@ public class Update {
     }
 
     public static class UpdateColumn {
-        private RawColumnRef column;
+        private RawColumnReference column;
         private Expression value;
 
-        public UpdateColumn(RawColumnRef column, Expression value) {
+        public UpdateColumn(RawColumnReference column, Expression value) {
             this.column = column;
             this.value = value;
         }
 
-        public RawColumnRef getColumn() {
+        public RawColumnReference getColumn() {
             return column;
         }
 

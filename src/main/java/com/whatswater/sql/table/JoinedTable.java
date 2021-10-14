@@ -1,9 +1,9 @@
 package com.whatswater.sql.table;
 
 
-import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
+import com.whatswater.sql.statement.Limit;
 import com.whatswater.sql.statement.SelectColumn;
 import com.whatswater.sql.statement.OrderByElement;
 
@@ -16,6 +16,8 @@ public class JoinedTable implements Table {
     private BoolExpression joinCondition;
 
     public JoinedTable(Table left, Table right, JoinType joinType, BoolExpression joinCondition) {
+        checkAlias(left);
+        checkAlias(right);
         this.left = left;
         this.right = right;
         this.joinType = joinType;
@@ -25,39 +27,36 @@ public class JoinedTable implements Table {
     @Override
     public Table where(BoolExpression where) {
         ComplexTable complexTable = new ComplexTable(this);
-        complexTable.setWhere(where);
-        return complexTable;
+        return complexTable.where(where);
     }
 
     @Override
     public Table select(List<SelectColumn> selectList) {
         ComplexTable complexTable = new ComplexTable(this);
-        complexTable.setSelectList(selectList);
-        return complexTable;
+        return complexTable.select(selectList);
+    }
+
+    @Override
+    public Table distinct(boolean distinct) {
+        ComplexTable complexTable = new ComplexTable(this);
+        return complexTable.distinct(distinct);
+    }
+
+    @Override
+    public Table limit(Limit limit) {
+        ComplexTable complexTable = new ComplexTable(this);
+        return complexTable.limit(limit);
     }
 
     @Override
     public Table orderBy(List<OrderByElement> orderByElementList) {
         ComplexTable complexTable = new ComplexTable(this);
-        complexTable.setOrderBy(orderByElementList);
-        return complexTable;
+        return complexTable.orderBy(orderByElementList);
     }
 
     @Override
     public Grouped groupBy(List<Expression> groupBy) {
-        return (having, selectList) -> {
-            ComplexTable complexTable = new ComplexTable(this);
-            complexTable.setSelectList(selectList);
-            complexTable.setGroupBy(groupBy);
-            complexTable.setHaving(having);
-
-            return complexTable;
-        };
-    }
-
-    @Override
-    public Table newAlias(AliasPlaceholder aliasPlaceholder) {
-        throw new UnsupportedOperationException("JoinedTable not support alias");
+        return (having, selectList) -> new ComplexTable(this).groupBy(groupBy).select(having, selectList);
     }
 
     public Table getLeft() {
@@ -74,5 +73,15 @@ public class JoinedTable implements Table {
 
     public BoolExpression getJoinCondition() {
         return joinCondition;
+    }
+
+
+    private static void checkAlias(Table table) {
+        if (table instanceof AliasTable) {
+            AliasTable ref = (AliasTable) table;
+            if (ref.getPlaceHolder() == null) {
+                throw new RuntimeException("XXXX");
+            }
+        }
     }
 }

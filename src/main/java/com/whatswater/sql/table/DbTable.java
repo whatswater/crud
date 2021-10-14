@@ -4,7 +4,6 @@ package com.whatswater.sql.table;
 import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
-import com.whatswater.sql.alias.AliasPlaceholderGetter;
 import com.whatswater.sql.statement.*;
 import com.whatswater.sql.mapper.ResultMapper;
 import com.whatswater.sql.statement.Update.UpdateColumn;
@@ -14,10 +13,10 @@ import com.whatswater.sql.utils.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 
-public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
-    private String tableName;
-    private Class<T> entityClass;
-    private AliasPlaceholder aliasPlaceholder;
+public class DbTable<T> implements AliasTable<DbTable<T>> {
+    private final String tableName;
+    private final Class<T> entityClass;
+    private final AliasPlaceholder aliasPlaceholder;
 
     public DbTable(Class<T> entityClass, String tableName) {
         this.tableName = tableName;
@@ -61,8 +60,8 @@ public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
         return new Delete(this, where);
     }
 
-    public Insert<T> toInsert() {
-        return null;
+    public Insert<T> toInsert(T entity) {
+        return new Insert<>(entity, this);
     }
 
     @Override
@@ -72,39 +71,41 @@ public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
 
     @Override
     public Table where(BoolExpression where) {
-        SelectedTable selectedTable = new SelectedTable(this, aliasPlaceholder);
-        selectedTable.setWhere(where);
-        return selectedTable;
+        SelectedTable selectedTable = new SelectedTable(this);
+        return selectedTable.where(where);
     }
 
     @Override
     public Table select(List<SelectColumn> selectList) {
-        SelectedTable selectedTable = new SelectedTable(this, aliasPlaceholder);
-        selectedTable.setSelectList(selectList);
-        return selectedTable;
+        SelectedTable selectedTable = new SelectedTable(this);
+        return selectedTable.select(selectList);
+    }
+
+    @Override
+    public Table distinct(boolean distinct) {
+        SelectedTable selectedTable = new SelectedTable(this);
+        return selectedTable.distinct(distinct);
+    }
+
+    @Override
+    public Table limit(Limit limit) {
+        SelectedTable selectedTable = new SelectedTable(this);
+        return selectedTable.limit(limit);
     }
 
     @Override
     public Table orderBy(List<OrderByElement> orderBy) {
         SelectedTable selectedTable = new SelectedTable(this, aliasPlaceholder);
-        selectedTable.setOrderBy(orderBy);
-        return selectedTable;
+        return selectedTable.orderBy(orderBy);
     }
 
     @Override
     public Grouped groupBy(List<Expression> groupBy) {
-        return (having, selectList) -> {
-            ComplexTable complexTable = new ComplexTable(this);
-            complexTable.setSelectList(selectList);
-            complexTable.setGroupBy(groupBy);
-            complexTable.setHaving(having);
-
-            return complexTable;
-        };
+        return (having, selectList) -> new ComplexTable(this).groupBy(groupBy).select(having, selectList);
     }
 
     @Override
-    public Table newAlias(AliasPlaceholder aliasPlaceholder) {
+    public DbTable<T> newAlias(AliasPlaceholder aliasPlaceholder) {
         return new DbTable<T>(tableName, entityClass, aliasPlaceholder);
     }
 
@@ -113,7 +114,6 @@ public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
         return aliasPlaceholder;
     }
 
-    @Override
     public boolean hasAlias() {
         return aliasPlaceholder != null && aliasPlaceholder.hasName();
     }
@@ -126,18 +126,15 @@ public class DbTable<T> implements Table, TableCanRef, AliasPlaceholderGetter {
         return entityClass;
     }
 
-    public String getAlias() {
-        if (hasAlias()) {
-            return aliasPlaceholder.getAlias();
-        }
-        return null;
-    }
-
     @Override
     public String getAliasOrTableName() {
         if (hasAlias()) {
             return aliasPlaceholder.getAlias();
         }
         return tableName;
+    }
+
+    public boolean similar(DbTable<?> dbTable) {
+        return dbTable.getTableName().equals(this.getTableName());
     }
 }

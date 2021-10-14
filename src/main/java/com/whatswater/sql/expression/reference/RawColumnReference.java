@@ -5,11 +5,11 @@ import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.statement.SelectColumn;
 import com.whatswater.sql.table.DbTable;
 
-public class RawColumnRef implements SelectColumn, Expression {
-    private DbTable<?> table;
-    private String columnName;
+public class RawColumnReference implements SelectColumn, Expression {
+    private final DbTable<?> table;
+    private final String columnName;
 
-    public RawColumnRef(DbTable<?> table, String columnName) {
+    public RawColumnReference(DbTable<?> table, String columnName) {
         this.table = table;
         this.columnName = columnName;
     }
@@ -23,7 +23,12 @@ public class RawColumnRef implements SelectColumn, Expression {
         return table;
     }
 
-    public String getColumnName() {
+    @Override
+    public String getAliasOrColumnName() {
         return columnName;
+    }
+
+    public RawColumnReference bindNewTable(DbTable<?> newTable) {
+        return new RawColumnReference(newTable, columnName);
     }
 }

@@ -1,11 +1,12 @@
 package com.whatswater.curd.project.user;
 
+import com.whatswater.sql.table.annotation.IdType;
 import com.whatswater.sql.table.annotation.TableId;
 import com.whatswater.sql.table.annotation.TableName;
 
 @TableName("user")
 public class User {
-    @TableId
+    @TableId(type = IdType.AUTO)
     private Long id;
     private String name;
 

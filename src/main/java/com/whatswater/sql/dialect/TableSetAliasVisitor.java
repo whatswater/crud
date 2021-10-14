@@ -2,11 +2,11 @@ package com.whatswater.sql.dialect;
 
 
 import com.whatswater.sql.alias.AliasFactory;
-import com.whatswater.sql.dialect.TableVisitor;
-import com.whatswater.sql.table.ComplexTable;
-import com.whatswater.sql.table.DbTable;
-import com.whatswater.sql.table.JoinedTable;
-import com.whatswater.sql.table.SelectedTable;
+import com.whatswater.sql.alias.AliasPlaceholder;
+import com.whatswater.sql.statement.SelectColumn;
+import com.whatswater.sql.table.*;
+
+import java.util.List;
 
 public class TableSetAliasVisitor implements TableVisitor {
     private AliasFactory aliasFactory;
@@ -17,30 +17,50 @@ public class TableSetAliasVisitor implements TableVisitor {
 
     @Override
     public void visit(DbTable<?> table) {
-        if (!table.hasAlias()) {
-            table.getPlaceHolder().setAlias(aliasFactory.getNextAlias());
-        }
+        setAliasName(table, aliasFactory);
     }
 
     @Override
     public void visit(SelectedTable table) {
-        if (!table.hasAlias()) {
-            table.getPlaceHolder().setAlias(aliasFactory.getNextAlias());
-        }
+        setColumnAlias(table.getSelectList(), aliasFactory);
         visit(table.getRawTable());
     }
 
     @Override
     public void visit(JoinedTable table) {
+        Table left = table.getLeft();
+        if (left instanceof AliasTable) {
+            setAliasName((AliasTable<?>) left, aliasFactory);
+        }
+
+        Table right = table.getRight();
+        if (right instanceof AliasTable) {
+            setAliasName((AliasTable<?>) right, aliasFactory);
+        }
+
         TableVisitor.visit(table.getLeft(), this);
         TableVisitor.visit(table.getRight(), this);
     }
 
     @Override
     public void visit(ComplexTable table) {
-        if (!table.hasAlias()) {
-            table.getPlaceHolder().setAlias(aliasFactory.getNextAlias());
-        }
+        setColumnAlias(table.getSelectList(), aliasFactory);
         TableVisitor.visit(table.getInnerTable(), this);
+    }
+
+    public static void setColumnAlias(List<SelectColumn> columnList, AliasFactory aliasFactory) {
+        for (SelectColumn column: columnList) {
+            AliasPlaceholder placeholder = column.getPlaceHolder();
+            if (placeholder != null && (!placeholder.hasName())) {
+                placeholder.setAlias(aliasFactory.getNextAlias());
+            }
+        }
+    }
+
+    public static void setAliasName(AliasTable<?> aliasTable, AliasFactory aliasFactory) {
+        AliasPlaceholder placeholder = aliasTable.getPlaceHolder();
+        if (placeholder != null && (!placeholder.hasName())) {
+            placeholder.setAlias(aliasFactory.getNextAlias());
+        }
     }
 }

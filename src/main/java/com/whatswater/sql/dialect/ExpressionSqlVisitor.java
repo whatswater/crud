@@ -10,9 +10,9 @@ import com.whatswater.sql.expression.literal.DateValue;
 import com.whatswater.sql.expression.literal.NumberLiteral;
 import com.whatswater.sql.expression.literal.StringValue;
 import com.whatswater.sql.expression.operators.*;
-import com.whatswater.sql.expression.reference.AliasColumnRef;
+import com.whatswater.sql.expression.reference.AliasColumnReference;
 import com.whatswater.sql.expression.reference.JdbcParameter;
-import com.whatswater.sql.expression.reference.RawColumnRef;
+import com.whatswater.sql.expression.reference.RawColumnReference;
 import com.whatswater.sql.expression.relational.AndExpression;
 import com.whatswater.sql.expression.relational.OrExpression;
 
@@ -23,20 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExpressionSqlVisitor {
-    private StringBuilder sql;
-    private List<Object> params;
-
-    public ExpressionSqlVisitor() {
-        this.sql = new StringBuilder();
-        this.params = new ArrayList<>();
-    }
-
-    public ExpressionSqlVisitor(List<Object> params) {
-        this.sql = new StringBuilder();
-        this.params = params;
-    }
-
+public class ExpressionSqlVisitor extends ToSqlVisitor {
     // TODO visit方法添加上下文环境，处理括号问题，处理table的序列化问题
     public void visit(Expression expression) {
         ExpressionType expressionType = expression.type();
@@ -311,14 +298,14 @@ public class ExpressionSqlVisitor {
                 break;
             case COLUMN_REF:
                 {
-                    RawColumnRef rawColumnRef = (RawColumnRef) expression;
-                    sql.append(rawColumnRef.getTable().getAliasOrTableName()).append(".").append(rawColumnRef.getColumnName());
+                    RawColumnReference rawColumnReference = (RawColumnReference) expression;
+                    sql.append(rawColumnReference.getTable().getAliasOrTableName()).append(".").append(rawColumnReference.getAliasOrColumnName());
                 }
                 break;
             case COLUMN_ALIAS_REF:
                 {
-                    AliasColumnRef aliasColumnRef = (AliasColumnRef) expression;
-                    sql.append(aliasColumnRef.getTable().getAliasOrTableName()).append(".").append(aliasColumnRef.getAliasOrColumnName());
+                    AliasColumnReference aliasColumnReference = (AliasColumnReference) expression;
+                    sql.append(aliasColumnReference.getTable().getAliasOrTableName()).append(".").append(aliasColumnReference.getAliasOrColumnName());
                 }
                 break;
             case FUNCTION:
@@ -338,12 +325,13 @@ public class ExpressionSqlVisitor {
         }
     }
 
-    public void clearSql() {
+    public void clearAll() {
         this.sql = new StringBuilder();
+        this.params = new ArrayList<>();
     }
 
-    public ExpressionSqlVisitor newSqlVisitor() {
-        return new ExpressionSqlVisitor(this.params);
+    public void clearSql() {
+        this.sql = new StringBuilder();
     }
 
     public StringBuilder getSql() {

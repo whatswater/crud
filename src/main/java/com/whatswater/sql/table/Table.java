@@ -19,7 +19,7 @@ public interface Table {
         return new Query<>(this, mapper);
     }
     default <M> Query<M> toQuery(ResultMapper<M> mapper, Limit limit) {
-        return new Query<>(this, mapper, limit);
+        return new Query<>(this.limit(limit), mapper);
     }
 
     default JoinedTable join(Table right, BoolExpression boolExpression, JoinType joinType) {
@@ -38,6 +38,19 @@ public interface Table {
         return select(Arrays.asList(selectArr));
     }
 
+    Table distinct(boolean distinct);
+    default Table distinct() {
+        return this.distinct(true);
+    }
+
+    Table limit(Limit limit);
+    default Table limit(int offset, int size) {
+        return limit(new Limit(offset, size));
+    }
+    default Table limit(int size) {
+        return limit(new Limit(size));
+    }
+
     Table orderBy(List<OrderByElement> orderByElementList);
     default Table orderBy(OrderByElement... orderByElementArr) {
         return orderBy(Arrays.asList(orderByElementArr));
@@ -46,10 +59,5 @@ public interface Table {
     Grouped groupBy(List<Expression> groupBy);
     default Grouped groupBy(Expression... expressionArr) {
         return groupBy(Arrays.asList(expressionArr));
-    }
-
-    Table newAlias(AliasPlaceholder aliasPlaceholder);
-    default Table newAlias() {
-        return newAlias(new AliasPlaceholder());
     }
 }

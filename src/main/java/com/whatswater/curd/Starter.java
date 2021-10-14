@@ -16,7 +16,7 @@ public class Starter {
         config.put("datasource.pool.idleTimeout", 300);
         config.put("datasource.connection.port", 3306);
         config.put("datasource.connection.host", "localhost");
-        config.put("datasource.connection.database", "curd");
+        config.put("datasource.connection.database", "crud");
         config.put("datasource.connection.user", "root");
         config.put("datasource.connection.password", "0000000qe");
         config.put("datasource.connection.encode", "utf8mb4");

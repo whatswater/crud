@@ -3,31 +3,35 @@ package com.whatswater.sql.table;
 import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
-import com.whatswater.sql.alias.AliasPlaceholderGetter;
 import com.whatswater.sql.statement.SelectColumn;
 import com.whatswater.sql.statement.*;
 import com.whatswater.sql.utils.StringUtils;
 
 import java.util.List;
 
-public class SelectedTable implements TableCanRef, AliasPlaceholderGetter {
+public class SelectedTable implements AliasTable<SelectedTable> {
     private final DbTable<?> rawTable;
+    private boolean distinct;
     private List<SelectColumn> selectList;
     private BoolExpression where;
+    private Limit limit;
     private List<OrderByElement> orderBy;
     private final AliasPlaceholder aliasPlaceholder;
 
     public SelectedTable(DbTable<?> rawTable) {
+        checkAlias(rawTable);
         this.rawTable = rawTable;
         this.aliasPlaceholder = new AliasPlaceholder();
     }
 
     public SelectedTable(DbTable<?> rawTable, AliasPlaceholder aliasPlaceholder) {
+        checkAlias(rawTable);
         this.rawTable = rawTable;
         this.aliasPlaceholder = aliasPlaceholder;
     }
 
     public SelectedTable(DbTable<?> rawTable, List<SelectColumn> selectList, BoolExpression where, List<OrderByElement> orderBy, AliasPlaceholder aliasPlaceholder) {
+        checkAlias(rawTable);
         this.rawTable = rawTable;
         this.selectList = selectList;
         this.where = where;
@@ -37,48 +41,45 @@ public class SelectedTable implements TableCanRef, AliasPlaceholderGetter {
 
     @Override
     public Table where(BoolExpression where) {
-        return new SelectedTable(rawTable, selectList, where, orderBy, aliasPlaceholder);
+        this.where = where;
+        return this;
     }
 
     @Override
     public Table select(List<SelectColumn> selectList) {
-        return new SelectedTable(rawTable, selectList, where, orderBy, aliasPlaceholder);
+        this.selectList = selectList;
+        return this;
+    }
+
+    @Override
+    public Table distinct(boolean distinct) {
+        this.distinct = distinct;
+        return this;
+    }
+
+    @Override
+    public Table limit(Limit limit) {
+        this.limit = limit;
+        return this;
     }
 
     @Override
     public Table orderBy(List<OrderByElement> orderBy) {
-        return new SelectedTable(rawTable, selectList, where, orderBy, aliasPlaceholder);
+        this.orderBy = orderBy;
+        return this;
     }
 
     @Override
     public Grouped groupBy(List<Expression> groupBy) {
-        return (having, selectList) -> {
-            ComplexTable complexTable = new ComplexTable(rawTable);
-            complexTable.setWhere(where);
-            complexTable.setSelectList(selectList);
-            complexTable.setOrderBy(orderBy);
-            complexTable.setGroupBy(groupBy);
-            complexTable.setHaving(having);
-
-            return complexTable;
-        };
+        return (having, selectList) -> new ComplexTable(rawTable)
+            .where(where)
+            .orderBy(orderBy)
+            .groupBy(groupBy).select(having, selectList);
     }
 
     @Override
-    public Table newAlias(AliasPlaceholder aliasPlaceholder) {
+    public SelectedTable newAlias(AliasPlaceholder aliasPlaceholder) {
         return new SelectedTable(rawTable, selectList, where, orderBy, aliasPlaceholder);
-    }
-
-    void setSelectList(List<SelectColumn> selectList) {
-        this.selectList = selectList;
-    }
-
-    void setWhere(BoolExpression where) {
-        this.where = where;
-    }
-
-    void setOrderBy(List<OrderByElement> orderBy) {
-        this.orderBy = orderBy;
     }
 
     @Override
@@ -86,7 +87,6 @@ public class SelectedTable implements TableCanRef, AliasPlaceholderGetter {
         return aliasPlaceholder;
     }
 
-    @Override
     public boolean hasAlias() {
         return aliasPlaceholder != null && aliasPlaceholder.hasName();
     }
@@ -107,11 +107,25 @@ public class SelectedTable implements TableCanRef, AliasPlaceholderGetter {
         return orderBy;
     }
 
+    public boolean isDistinct() {
+        return distinct;
+    }
+
+    public Limit getLimit() {
+        return limit;
+    }
+
     @Override
     public String getAliasOrTableName() {
         if (hasAlias()) {
             return aliasPlaceholder.getAlias();
         }
         return StringUtils.EMPTY;
+    }
+
+    private static void checkAlias(DbTable<?> table) {
+        if (table.getPlaceHolder() == null) {
+            throw new RuntimeException("XXXX");
+        }
     }
 }

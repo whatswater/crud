@@ -12,6 +12,18 @@ public class OrderByElement {
         this.asc = asc;
     }
 
+    public Expression getExpression() {
+        return expression;
+    }
+
+    public boolean isAsc() {
+        return asc;
+    }
+
+    public NullOrdering getNullOrdering() {
+        return nullOrdering;
+    }
+
     public String toString() {
         StringBuilder b = new StringBuilder();
         b.append(this.expression.toString());

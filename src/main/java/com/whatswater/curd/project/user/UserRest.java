@@ -1,10 +1,10 @@
 package com.whatswater.curd.project.user;
 
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import com.zandero.rest.annotation.BodyParam;
+import io.vertx.core.Future;
+
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
 @Path("/user")
@@ -19,12 +19,30 @@ public class UserRest {
     @GET
     @Path("/get")
     @Produces(APPLICATION_JSON_UTF8)
-    public String get(@QueryParam("userId") String userId) {
+    public Future<User> get(@QueryParam("userId") Long userId) {
+        if (userId == null) {
+            throw new RuntimeException("11111111111111111");
+        }
         try {
-            return userService.deleteById();
+            return userService.getById(userId);
         } catch (Exception e) {
             e.printStackTrace();
+            return Future.failedFuture(e);
         }
-        return "";
+    }
+
+    @POST
+    @Path("/put")
+    @Produces(APPLICATION_JSON_UTF8)
+    public Future<Long> put(@BodyParam User user) {
+        if (user == null) {
+            throw new RuntimeException("11111111111111111");
+        }
+        try {
+            return userService.insert(user);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Future.failedFuture(e);
+        }
     }
 }

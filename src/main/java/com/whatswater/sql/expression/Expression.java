@@ -13,14 +13,7 @@ import com.whatswater.sql.alias.AliasPlaceholder;
 import java.util.Arrays;
 import java.util.Collections;
 
-/**
- * SQL构建器所使用的表达式接口
- * 和AST不同，Expression并不是为了表示SQL语句，而是为了类型安全和生成SQL
- * 故Expression的最小粒度可能会比AST大得多，一些不影响语义的细节（例如not，!的区分，是否加as），不会体现在Expression中
- * 同时一些接口继承Expression，实现类型安全
- */
-// TODO 添加构造的静态方法
-// TODO 优化SFunction和常量操作
+
 public interface Expression {
     ExpressionType type();
 
@@ -85,6 +78,10 @@ public interface Expression {
         } else {
             return new EqualsTo(this,  new JdbcParameter(value));
         }
+    }
+
+    default FunctionExpression count() {
+        return new FunctionExpression("count", this);
     }
 
     default Alias as(String aliasName) {

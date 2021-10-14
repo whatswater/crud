@@ -5,10 +5,9 @@ import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.statement.SelectColumn;
 import com.whatswater.sql.utils.StringUtils;
 
-public class Alias implements SelectColumn, AliasPlaceholderGetter {
+public class Alias implements SelectColumn {
     private Expression expression;
     private AliasPlaceholder aliasPlaceholder;
-    private String aliasName;
 
     public Alias(Expression expression, AliasPlaceholder placeholder) {
         this.expression = expression;
@@ -17,7 +16,7 @@ public class Alias implements SelectColumn, AliasPlaceholderGetter {
 
     public Alias(Expression expression, String aliasName) {
         this.expression = expression;
-        this.aliasName = aliasName;
+        this.aliasPlaceholder = new AliasPlaceholder(aliasName);
     }
 
     @Override
@@ -26,11 +25,15 @@ public class Alias implements SelectColumn, AliasPlaceholderGetter {
     }
 
     @Override
-    public boolean hasAlias() {
-        if (StringUtils.isNotEmpty(aliasName)) {
-            return true;
+    public String getAliasOrColumnName() {
+        String alias = aliasPlaceholder.getAlias();
+        if (StringUtils.isEmpty(alias)) {
+            throw new RuntimeException("X3");
         }
+        return alias;
+    }
 
-        return aliasPlaceholder != null && aliasPlaceholder.hasName();
+    public Expression getExpression() {
+        return expression;
     }
 }

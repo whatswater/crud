@@ -5,24 +5,25 @@ import com.whatswater.sql.statement.Delete;
 import com.whatswater.sql.statement.Insert;
 import com.whatswater.sql.statement.Query;
 import com.whatswater.sql.statement.Update;
+import com.whatswater.sql.table.*;
 
 import java.util.List;
 
 public interface Dialect {
-    SqlAndParam toSql(Update update);
-    SqlAndParam toSql(Delete delete);
-    SqlAndParam toSql(Query<?> query);
-    SqlAndParam toSql(Insert<?> insert);
+    SQL toSql(Update update);
+    SQL toSql(Delete delete);
+    SQL toSql(Query<?> query);
+    SQL toSql(Insert<?> insert);
 
-    class SqlAndParam {
-        private String sql;
+    class SQL {
+        private final String sql;
         private List<Object> params;
 
-        public SqlAndParam(String sql) {
+        public SQL(String sql) {
             this.sql = sql;
         }
 
-        public SqlAndParam(String sql, List<Object> params) {
+        public SQL(String sql, List<Object> params) {
             this.sql = sql;
             this.params = params;
         }
@@ -33,6 +34,17 @@ public interface Dialect {
 
         public List<Object> getParams() {
             return params;
+        }
+    }
+
+    static void reLocationExpression(Query<?> query) {
+        Table table = query.getTable();
+        if (table instanceof SelectedTable) {
+
+        } else if (table instanceof ComplexTable) {
+
+        } else if (table instanceof JoinedTable) {
+
         }
     }
 }

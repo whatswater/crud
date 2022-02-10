@@ -2,8 +2,12 @@ package com.whatswater.sql.dialect;
 
 
 import com.whatswater.sql.alias.AliasFactory;
+import com.whatswater.sql.alias.AliasHolderVisitor;
+import com.whatswater.sql.alias.AliasPlaceholder;
+import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
-import com.whatswater.sql.expression.reference.RawColumnReference;
+import com.whatswater.sql.expression.LogicExpression;
+import com.whatswater.sql.expression.ReferenceExpression;
 import com.whatswater.sql.statement.*;
 import com.whatswater.sql.statement.Update.UpdateColumn;
 import com.whatswater.sql.table.DbTable;
@@ -15,101 +19,88 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-// TODO
-//  1、aliasFactory需要处理名称重复的情况，不能与其他列的名称重复
-//  2、Table做成可变对象，仅仅在生成新table或者设置alias时创建新对象（已完成）
-//  3、当一个表作为内部表时，必须指定别名，若没有则报错（已完成）
-//  4、当一个表是内部表时，其列被系统自动转化
-//  5、提供addSelect(ColumnRef, AliasPlaceHolder)方法
-//  6、提供各种visitor接口，保证实现的正确性
+
 public class MysqlDialect implements Dialect {
 
     @Override
     public SQL toSql(Update update) {
-        AliasFactory aliasFactory = new AliasFactory();
-        Table table = update.getTable();
-        setTableAlias(table, aliasFactory);
+        Map<ReferenceExpression, ReferenceExpression> symbolReplaceMap = update.reBindColumnReference();
+        Table table = update.getTable() == null ? update.getDbTable() : update.getTable();
+        setAlias(table);
 
-        // 序列化table
-        StringBuilder sql = new StringBuilder("update");
-        ExpressionSqlVisitor expressionSqlVisitor = new ExpressionSqlVisitor();
-        TableToSqlVisitor tableVisitor = new TableToSqlVisitor(expressionSqlVisitor);
-        TableVisitor.visit(table, tableVisitor);
-        sql.append(" ").append(tableVisitor.getSql()).append(" set ");
+        SQL updateSql = new SQL();
+        updateSql.append("update");
 
-        ExpressionSqlVisitor sqlVisitor = new ExpressionSqlVisitor();
-        for (UpdateColumn valueSet: update.getValueSetList()) {
-            RawColumnReference raw = valueSet.getColumn();
-            String tableAlias = raw.getTable().getPlaceHolder().getAlias();
+        ExpressionSqlVisitor tableSqlVisitor = new ExpressionSqlVisitor(new SQL());
+        tableSqlVisitor.setSymbolReplaceMap(symbolReplaceMap);
+        TableSqlVisitor tableVisitor = new TableSqlVisitor(tableSqlVisitor);
+        tableVisitor.visit(table);
+        updateSql.append(" ").append(tableVisitor.getSql()).append(" set ");
 
-            String prefix = "";
-            if (StringUtils.isNotEmpty(tableAlias)) {
-                prefix = tableAlias + ".";
-            }
-
-            sql.append(prefix).append(raw.getAliasOrColumnName()).append(" = ");
-
-            Expression expression = valueSet.getValue();
-            sqlVisitor.visit(expression);
-            sql.append(sqlVisitor.getAndClearSql()).append(",");
+        for (UpdateColumn valueForSet: update.getValueSetList()) {
+            updateSql
+                .append(Expression.toSQL(tableSqlVisitor, valueForSet.getColumn()))
+                .append(" = ")
+                .append(Expression.toSQL(tableSqlVisitor, valueForSet.getValue()))
+                .append(StringUtils.COMMA);
         }
-        if (",".equals(sql.substring(sql.length() - 1, sql.length()))) {
-            sql.deleteCharAt(sql.length() - 1);
-        }
+        updateSql.deleteLastChar(StringUtils.COMMA);
         if (update.getWhere() != null) {
-            sql.append(" where ");
-            sqlVisitor.visit(update.getWhere());
-            sql.append(sqlVisitor.getAndClearSql());
+            updateSql.append(" where ").append(Expression.toSQL(tableSqlVisitor, update.getWhere()));
         }
         if (update.getLimit() != null) {
-            sql.append(" limit ").append(update.getLimit().getSize());
+            updateSql.append(" limit ").append(update.getLimit().getSize());
         }
 
-        return new SQL(sql.toString(), sqlVisitor.getParams());
+        return updateSql;
     }
 
     @Override
     public SQL toSql(Delete delete) {
-        StringBuilder sql = new StringBuilder();
-        sql.append("delete from ");
+        SQL deleteSql = new SQL();
+        deleteSql.append("delete from ");
         DbTable<?> dbTable = delete.getDbTable();
+        setAlias(dbTable);
+        TableSqlVisitor tableVisitor = new TableSqlVisitor(new ExpressionSqlVisitor(new SQL()));
+        tableVisitor.visit(dbTable);
+        deleteSql.append(tableVisitor.getSql());
 
-        AliasFactory aliasFactory = new AliasFactory();
-        setTableAlias(dbTable, aliasFactory);
-
-        sql.append(dbTable.getTableName());
-        if (dbTable.hasAlias()) {
-            sql.append(" ").append(dbTable.getPlaceHolder().getAlias());
-        }
         if (delete.getWhere() != null) {
-            sql.append(" where ");
-            ExpressionSqlVisitor sqlVisitor = new ExpressionSqlVisitor();
-            sqlVisitor.visit(delete.getWhere());
-            sql.append(sqlVisitor.getAndClearSql());
+            Map<ReferenceExpression, ReferenceExpression> symbolReplaceMap = delete.reBindColumnReference();
+            BoolExpression where = delete.getWhere();
+            if (where instanceof LogicExpression) {
+                where = ((LogicExpression) where).flatten();
+            }
 
-            return new SQL(sql.toString(), sqlVisitor.getParams());
+            ExpressionSqlVisitor expressionSqlVisitor = new ExpressionSqlVisitor(new SQL());
+            expressionSqlVisitor.setSymbolReplaceMap(symbolReplaceMap);
+            expressionSqlVisitor.visit(where);
+            deleteSql.append(" where ").append(expressionSqlVisitor.getSql().removeBrackets());
         }
-
-        return new SQL(sql.toString());
+        return deleteSql;
     }
 
     @Override
     public SQL toSql(Query<?> query) {
-        AliasFactory aliasFactory = new AliasFactory();
-        Table table = query.getTable();
-        setTableAlias(table, aliasFactory);
+        Map<ReferenceExpression, ReferenceExpression> symbolReplaceMap = query.getTable().reBindColumnReference();
+        ExpressionSqlVisitor expressionSqlVisitor = new ExpressionSqlVisitor(new SQL());
+        expressionSqlVisitor.setSymbolReplaceMap(symbolReplaceMap);
 
-        ExpressionSqlVisitor expressionSqlVisitor = new ExpressionSqlVisitor();
-        TableToSqlVisitor tableVisitor = new TableToSqlVisitor(expressionSqlVisitor);
-        TableVisitor.visit(table, tableVisitor);
-
-        return new SQL(tableVisitor.getSql().toString(), tableVisitor.getParams());
+        setAlias(query.getTable());
+        TableSqlVisitor tableVisitor = new TableSqlVisitor(expressionSqlVisitor);
+        tableVisitor.visit(query.getTable());
+        if (query.getTable().isSqlQuery()) {
+            return tableVisitor.getSql();
+        } else {
+            SQL sql = new SQL(new StringBuilder("select * from "));
+            return sql.append(tableVisitor.getSql());
+        }
     }
 
     @Override
     public SQL toSql(Insert<?> insert) {
-        StringBuilder sql = new StringBuilder("insert into ");
-        sql.append(insert.getDbTable().getTableName()).append("(");
+        SQL insertSql = new SQL();
+        insertSql.append("insert into ").append(insert.getDbTable().getTableName()).append("(");
 
         Class<?> entityClass = insert.getEntityClass();
         TableInfo tableInfo = getTableInfo(entityClass);
@@ -139,22 +130,39 @@ public class MysqlDialect implements Dialect {
                 continue;
             }
 
-            sql.append(tableFieldInfo.getColumn()).append(", ");
+            insertSql.append(tableFieldInfo.getColumn()).append(StringUtils.COMMA);
             params.add(value);
         }
         if (params.isEmpty()) {
-            throw new RuntimeException("X6");
+            throw new RuntimeException("Insert's params is empty when generate sql");
         }
-        sql.replace(sql.length() - 2, sql.length(), ") values (");
+        insertSql.deleteLastChar(StringUtils.COMMA).append(") values (");
         for (Object ignored : params) {
-            sql.append("?, ");
+            insertSql.append("?").append(StringUtils.COMMA);
         }
-        sql.replace(sql.length() - 2, sql.length(), ")");
-        return new SQL(sql.toString(), params);
+        insertSql.deleteLastChar(StringUtils.COMMA).append(")");
+        insertSql.addParam(params);
+        return insertSql;
     }
 
-    public static void setTableAlias(Table table, AliasFactory aliasFactory) {
-        TableVisitor.visit(table, new TableSetAliasVisitor(aliasFactory));
+    private AliasFactory setAlias(AliasHolderVisitor visitor) {
+        Set<AliasPlaceholder> aliasPlaceholders = new HashSet<>();
+        visitor.visitAliasHolder(aliasPlaceholders::add);
+
+        AliasFactory aliasFactory = new AliasFactory();
+        for (AliasPlaceholder aliasPlaceholder: aliasPlaceholders) {
+            String alias = aliasPlaceholder.getAlias();
+            if (StringUtils.isNotEmpty(alias)) {
+                aliasFactory.addNamedAlias(alias);
+            }
+        }
+        for (AliasPlaceholder aliasPlaceholder: aliasPlaceholders) {
+            String alias = aliasPlaceholder.getAlias();
+            if (StringUtils.isEmpty(alias)) {
+                aliasPlaceholder.setAlias(aliasFactory.getNextAlias());
+            }
+        }
+        return aliasFactory;
     }
 
     public TableInfo getTableInfo(Class<?> entityClass) {

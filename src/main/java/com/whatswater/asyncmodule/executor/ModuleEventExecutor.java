@@ -10,6 +10,11 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+// 线程缩减实现
+// 1、实现一个事件，事件中检查每个线程的idle时间
+// 2、当线程是idle时，submitTask时，将此事件添加到线程池
+// 3、此事件执行完后，判断当前是否只存在一个线程，若是，则关闭检查；若否，则调用setTimeout注册一个检测事件
+
 // 模块事件执行器
 // 提供一个bindWorker方法，由moduleEventExecutor获取一个worker
 // 当moduleEventExecutor判断当前consumer无绑定的worker时，从worker池中
@@ -36,8 +41,7 @@ public class ModuleEventExecutor {
         workers = new Worker[coreSize];
         for (int i = 0; i < coreSize; i++) {
             Worker worker = new Worker();
-            Thread thread = threadFactory.newThread(worker);
-            worker.thread = thread;
+            worker.thread = threadFactory.newThread(worker);
             workers[i] = worker;
         }
 
@@ -53,18 +57,13 @@ public class ModuleEventExecutor {
             synchronized (this) {
                 worker = findBindWorker(consumer);
                 if (worker == null) {
-                    Worker newWorker = selectWorker();
-                    newWorker.bind(consumer, eventList);
-                    if (newWorker.idle) {
-                        LockSupport.unpark(newWorker.thread);
-                    }
+                    worker = selectWorker();
                 }
             }
-        } else {
-            worker.bind(consumer, eventList);
-            if (worker.idle) {
-                LockSupport.unpark(worker.thread);
-            }
+        }
+        worker.bind(consumer, eventList);
+        if (worker.idle) {
+            LockSupport.unpark(worker.thread);
         }
     }
 
@@ -103,15 +102,16 @@ public class ModuleEventExecutor {
         return ret;
     }
 
-
     static class Worker implements Runnable {
         // consumers只读，无线程安全问题
         // 若因为consumers效率问题，Worker内部可记录当前消费的偏移值
         List<ModuleInfo> consumers = new ArrayList<>();
-        List<ModuleInfo> addConsumers = new ArrayList<>();
+        // 处于等待队列的消费者
+        List<ModuleInfo> waitConsumer = new ArrayList<>();
         final ReadWriteLock lock = new ReentrantReadWriteLock();
         Thread thread;
 
+        // inSize - deSize 当前剩余事件数
         volatile int inSize = 0;
         volatile int deSize = 0;
         volatile boolean idle = true;
@@ -121,9 +121,9 @@ public class ModuleEventExecutor {
             readLock.lock();
             try {
                 consumer.getEventQueue().addAll(eventList);
-                synchronized (addConsumers) {
+                synchronized (waitConsumer) {
                     // 判断重复
-                    addConsumers.add(consumer);
+                    waitConsumer.add(consumer);
                     inSize += eventList.size();
                 }
             } finally {
@@ -135,8 +135,8 @@ public class ModuleEventExecutor {
             Lock readLock = lock.readLock();
             readLock.lock();
             try {
-                synchronized (addConsumers) {
-                    return consumers.contains(consumer) || addConsumers.contains(consumer);
+                synchronized (waitConsumer) {
+                    return consumers.contains(consumer) || waitConsumer.contains(consumer);
                 }
             } finally {
                 readLock.unlock();
@@ -153,9 +153,7 @@ public class ModuleEventExecutor {
                 for (ModuleInfo consumer: consumers) {
                     Queue<ModuleEvent> queue = consumer.getEventQueue();
                     event = queue.poll();
-                    if (event == null) {
-                        continue;
-                    } else {
+                    if (event != null) {
                         break;
                     }
                 }
@@ -169,8 +167,8 @@ public class ModuleEventExecutor {
             Lock writeLock = lock.writeLock();
             writeLock.lock();
             try {
-                consumers = addConsumers;
-                addConsumers = new ArrayList<>();
+                consumers = waitConsumer;
+                waitConsumer = new ArrayList<>();
                 inSize -= deSize;
                 deSize = 0;
                 return !consumers.isEmpty();

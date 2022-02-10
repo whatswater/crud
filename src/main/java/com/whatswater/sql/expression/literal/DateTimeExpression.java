@@ -1,6 +1,6 @@
 package com.whatswater.sql.expression.literal;
 
-import com.whatswater.sql.expression.Expression;
+import com.whatswater.sql.expression.Literal;
 
 import java.time.LocalDateTime;
 
@@ -13,10 +13,5 @@ public class DateTimeExpression implements Literal {
 
     public LocalDateTime getValue() {
         return value;
-    }
-
-    @Override
-    public ExpressionType type() {
-        return ExpressionType.VALUE_DATETIME;
     }
 }

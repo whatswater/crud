@@ -1,6 +1,7 @@
 package com.whatswater.sql.table;
 
 
+import com.whatswater.sql.alias.AliasHolderVisitor;
 import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.expression.BoolExpression;
 import com.whatswater.sql.expression.Expression;
@@ -13,7 +14,7 @@ import com.whatswater.sql.utils.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 
-public class DbTable<T> implements AliasTable<DbTable<T>> {
+public class DbTable<T> implements AliasTable<DbTable<T>>, AliasHolderVisitor {
     private final String tableName;
     private final Class<T> entityClass;
     private final AliasPlaceholder aliasPlaceholder;
@@ -70,43 +71,74 @@ public class DbTable<T> implements AliasTable<DbTable<T>> {
     }
 
     @Override
+    public boolean isSqlQuery() {
+        return false;
+    }
+
+    @Override
     public Table where(BoolExpression where) {
-        SelectedTable selectedTable = new SelectedTable(this);
+        SelectedTable selectedTable = new SelectedTable(this.newAlias());
         return selectedTable.where(where);
     }
 
     @Override
     public Table select(List<SelectColumn> selectList) {
-        SelectedTable selectedTable = new SelectedTable(this);
+        SelectedTable selectedTable = new SelectedTable(this.newAlias());
         return selectedTable.select(selectList);
     }
 
     @Override
     public Table distinct(boolean distinct) {
-        SelectedTable selectedTable = new SelectedTable(this);
+        SelectedTable selectedTable = new SelectedTable(this.newAlias());
         return selectedTable.distinct(distinct);
     }
 
     @Override
     public Table limit(Limit limit) {
-        SelectedTable selectedTable = new SelectedTable(this);
+        SelectedTable selectedTable = new SelectedTable(this.newAlias());
         return selectedTable.limit(limit);
     }
 
     @Override
     public Table orderBy(List<OrderByElement> orderBy) {
-        SelectedTable selectedTable = new SelectedTable(this, aliasPlaceholder);
+        SelectedTable selectedTable = new SelectedTable(this.newAlias());
         return selectedTable.orderBy(orderBy);
     }
 
     @Override
     public Grouped groupBy(List<Expression> groupBy) {
-        return (having, selectList) -> new ComplexTable(this).groupBy(groupBy).select(having, selectList);
+        return (having, selectList) -> new ComplexTable(this.newAlias()).groupBy(groupBy).select(having, selectList);
+    }
+
+    @Override
+    public AliasTable<?> findMatchedTable(Table table, String columnName) {
+        if (!(table instanceof DbTable)) {
+            return null;
+        }
+        DbTable<?> dbTable = (DbTable<?>) table;
+        if (dbTable.hasAlias()) {
+            final boolean r = aliasPlaceholder == null
+                || StringUtils.isEmpty(aliasPlaceholder.getAlias())
+                || (!dbTable.aliasPlaceholder.getAlias().equals(this.aliasPlaceholder.getAlias()));
+            if (r) {
+                return null;
+            }
+            return this;
+        }
+        if (dbTable.getTableName().equals(this.getTableName())) {
+            return this;
+        }
+        return null;
+    }
+
+    @Override
+    public AliasTable<?> findMatchedTable(Table table, AliasPlaceholder columnName) {
+        return null;
     }
 
     @Override
     public DbTable<T> newAlias(AliasPlaceholder aliasPlaceholder) {
-        return new DbTable<T>(tableName, entityClass, aliasPlaceholder);
+        return new DbTable<>(tableName, entityClass, aliasPlaceholder);
     }
 
     @Override
@@ -114,6 +146,7 @@ public class DbTable<T> implements AliasTable<DbTable<T>> {
         return aliasPlaceholder;
     }
 
+    @Override
     public boolean hasAlias() {
         return aliasPlaceholder != null && aliasPlaceholder.hasName();
     }
@@ -126,6 +159,13 @@ public class DbTable<T> implements AliasTable<DbTable<T>> {
         return entityClass;
     }
 
+    public boolean isSimilar(AliasTable<?> table) {
+        if (table instanceof DbTable<?>) {
+            return tableName.equals(((DbTable<?>)table).getTableName());
+        }
+        return false;
+    }
+
     @Override
     public String getAliasOrTableName() {
         if (hasAlias()) {
@@ -134,7 +174,10 @@ public class DbTable<T> implements AliasTable<DbTable<T>> {
         return tableName;
     }
 
-    public boolean similar(DbTable<?> dbTable) {
-        return dbTable.getTableName().equals(this.getTableName());
+    @Override
+    public void visitAliasHolder(Handler handler) {
+        if (aliasPlaceholder != null) {
+            handler.handle(aliasPlaceholder);
+        }
     }
 }

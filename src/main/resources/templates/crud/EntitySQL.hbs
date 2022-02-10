@@ -1,0 +1,11 @@
+package {{packageName}};
+
+import io.vertx.ext.sql.assist.CommonSQL;
+import io.vertx.ext.sql.assist.SQLExecute;
+import io.vertx.mysqlclient.MySQLPool;
+
+public class {{entityName}}SQL extends CommonSQL<{{entityName}}, MySQLPool> {
+    public {{entityName}}SQL(SQLExecute<MySQLPool> execute) {
+        super(execute);
+    }
+}

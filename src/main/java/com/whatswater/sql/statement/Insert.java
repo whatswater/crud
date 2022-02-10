@@ -3,6 +3,7 @@ package com.whatswater.sql.statement;
 
 import com.whatswater.sql.table.DbTable;
 
+// TODO 去掉EntityClass，改为TableInfo对象
 // TODO 添加一个TableInfo对象，作为缓存
 public class Insert<T> {
     T entity;

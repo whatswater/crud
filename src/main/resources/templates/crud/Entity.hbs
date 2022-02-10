@@ -1,0 +1,23 @@
+package {{packageName}};
+
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.sql.assist.Table;
+import io.vertx.ext.sql.assist.TableColumn;
+import io.vertx.ext.sql.assist.TableId;
+
+@Table("{{tableName}}")
+public class {{entityName}} {
+    {{#each columnDefinitionList}}public static final String COLUMN_{{this.upperColumnName}} = "{{this.columnName}}";
+    {{/each}}
+
+    {{#each columnDefinitionList}}{{#if this.primary}}@TableId(COLUMN_{{this.upperColumnName}}){{else}}@TableColumn(COLUMN_{{this.upperColumnName}}){{/if}}
+    private {{this.javaType}} {{this.fieldName}};
+    {{/each}}
+    public {{entityName}}() {
+    }
+
+    public {{entityName}}(JsonObject json) {
+        {{#each columnDefinitionList}}this.{{this.fieldName}} = json.get{{this.javaType}}(COLUMN_{{this.upperColumnName}});
+        {{/each}}
+    }
+}

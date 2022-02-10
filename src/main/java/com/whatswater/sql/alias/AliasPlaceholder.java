@@ -3,11 +3,14 @@ package com.whatswater.sql.alias;
 
 import com.whatswater.sql.utils.StringUtils;
 
+import java.util.UUID;
+
 public class AliasPlaceholder {
     private String alias;
+    private String uuid;
 
     public AliasPlaceholder() {
-
+        this.uuid = UUID.randomUUID().toString();
     }
 
     public AliasPlaceholder(String alias) {

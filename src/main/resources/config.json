@@ -1,0 +1,19 @@
+{
+    "http.port": 8080,
+    "http.host": "0.0.0.0",
+    "datasource.pool.maxSize": 10,
+    "datasource.pool.idleTimeout": 300,
+    "datasource.connection.port": 3306,
+    "datasource.connection.host": "10.43.117.115",
+    "datasource.connection.database": "crud",
+    "datasource.connection.user": "root",
+    "datasource.connection.password": "0000000Qe@1",
+    "datasource.connection.encode": "utf8mb4",
+    "datasource.connection.collation": "utf8mb4_general_ci",
+    "datasource.connection.serverTimeZone": "Asia/Shanghai",
+    "static.folder": "/html",
+    "static.enabled": "0",
+    "upload.tmpFolder": "/tmp/crud_upload",
+    "upload.fileFolder": "/root/crud_upload_file"
+}
+

@@ -1,30 +1,31 @@
 package com.whatswater.sql.expression;
 
-import com.whatswater.sql.expression.bool.*;
-import com.whatswater.sql.expression.bool.InExpression.ExpressionList;
-import com.whatswater.sql.expression.bool.InExpression.LiteralList;
-import com.whatswater.sql.expression.literal.Literal;
+import com.whatswater.sql.alias.AliasHolderVisitor;
+import com.whatswater.sql.dialect.Dialect.SQL;
+import com.whatswater.sql.dialect.ExpressionSqlVisitor;
+import com.whatswater.sql.expression.judge.*;
+import com.whatswater.sql.expression.judge.InExpression.LiteralList;
+import com.whatswater.sql.expression.judge.InExpression.SubSelect;
 import com.whatswater.sql.expression.literal.NumberLiteral;
 import com.whatswater.sql.alias.Alias;
-import com.whatswater.sql.expression.reference.JdbcParameter;
+import com.whatswater.sql.expression.literal.JdbcParameter;
 import com.whatswater.sql.statement.OrderByElement;
 import com.whatswater.sql.alias.AliasPlaceholder;
+import com.whatswater.sql.table.ComplexTable;
+import com.whatswater.sql.table.SelectedTable;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 
-public interface Expression {
+public interface Expression extends AliasHolderVisitor {
     ExpressionType type();
 
     default BoolExpression isNull() {
         return new IsNull(this);
     }
-
     default BoolExpression gt(Expression expr) {
         return new GreaterThan(this, expr);
     }
-
     default BoolExpression gt(Object value) {
         if(value instanceof Expression) {
             return new GreaterThan(this, (Expression) value);
@@ -32,11 +33,9 @@ public interface Expression {
             return new GreaterThan(this,  new JdbcParameter(value));
         }
     }
-
     default BoolExpression ge(Expression expr) {
         return new GreaterThanEquals(this, expr);
     }
-
     default BoolExpression ge(Object value) {
         if(value instanceof Expression) {
             return new GreaterThanEquals(this, (Expression) value);
@@ -44,7 +43,6 @@ public interface Expression {
             return new GreaterThanEquals(this,  new JdbcParameter(value));
         }
     }
-
     default BoolExpression lt(Expression expr) {
         return new LessThan(this, expr);
     }
@@ -55,11 +53,9 @@ public interface Expression {
             return new LessThan(this,  new JdbcParameter(value));
         }
     }
-
     default BoolExpression le(Expression expr) {
         return new LessThanEquals(this, expr);
     }
-
     default BoolExpression le(Object value) {
         if(value instanceof Expression) {
             return new LessThanEquals(this, (Expression) value);
@@ -67,11 +63,9 @@ public interface Expression {
             return new LessThanEquals(this,  new JdbcParameter(value));
         }
     }
-
     default BoolExpression eq(Expression expr) {
         return new EqualsTo(this, expr);
     }
-
     default BoolExpression eq(Object value) {
         if(value instanceof Expression) {
             return new EqualsTo(this, (Expression) value);
@@ -79,22 +73,18 @@ public interface Expression {
             return new EqualsTo(this,  new JdbcParameter(value));
         }
     }
-
     default FunctionExpression count() {
         return new FunctionExpression("count", this);
     }
-
     default Alias as(String aliasName) {
         return new Alias(this, aliasName);
     }
     default Alias as(AliasPlaceholder aliasPlaceholder) {
         return new Alias(this, aliasPlaceholder);
     }
-
     default BoolExpression ne(Expression expr) {
         return new NotEqualsTo(this, expr);
     }
-
     default BoolExpression ne(Object value) {
         if(value instanceof Expression) {
             return new NotEqualsTo(this, (Expression) value);
@@ -102,18 +92,15 @@ public interface Expression {
             return new NotEqualsTo(this,  new JdbcParameter(value));
         }
     }
-
     default BoolExpression like(Literal str) {
         return new LikeExpression(this, str);
     }
     default BoolExpression like(String value) {
-        return new InExpression(this, new ExpressionList(Collections.singletonList(new JdbcParameter(value))));
+        return new LikeExpression(this, new JdbcParameter(value));
     }
-
     default BoolExpression inConstValues(Literal ...constList) {
         return new InExpression(this, new LiteralList(Arrays.asList(constList)));
     }
-
     default BoolExpression inConstValues(int... values) {
         Literal[] constList = new NumberLiteral[values.length];
         for(int i = 0; i < constList.length; i++) {
@@ -122,73 +109,56 @@ public interface Expression {
 
         return new InExpression(this, new LiteralList(Arrays.asList(constList)));
     }
-
     default BoolExpression in(String... values) {
         JdbcParameter[] constList = new JdbcParameter[values.length];
         for(int i = 0; i < constList.length; i++) {
             constList[i] = new JdbcParameter(values[i]);
         }
 
-        return new InExpression(this, new ExpressionList(Arrays.asList(constList)));
+        return new InExpression(this, new LiteralList(Arrays.asList(constList)));
     }
-
     default BoolExpression in(int... values) {
         JdbcParameter[] constList = new JdbcParameter[values.length];
         for(int i = 0; i < constList.length; i++) {
             constList[i] = new JdbcParameter(values[i]);
         }
-
-        return new InExpression(this, new ExpressionList(Arrays.asList(constList)));
+        return new InExpression(this, new LiteralList(Arrays.asList(constList)));
     }
-
-//    default BoolExpression in(Query query) {
-//        return new InSubQueryExpr(this, query);
-//    }
-
+    default BoolExpression in(SelectedTable table) {
+        return new InExpression(this, new SubSelect(table));
+    }
+    default BoolExpression in(ComplexTable table) {
+        return new InExpression(this, new SubSelect(table));
+    }
     default OrderByElement desc() {
         return new OrderByElement(this, false);
     }
-
     default OrderByElement asc() {
         return new OrderByElement(this, true);
     }
 
     enum ExpressionType {
-        VALUE_NUMBER,
-        VALUE_STRING,
-        VALUE_NULL,
-        VALUE_DATE,
-        VALUE_DATETIME,
-        JDBC_PARAMETER,
-        OP_ADD,
-        OP_BIT_AND,
-        OP_BIT_LEFT_SHIFT,
-        OP_BIT_OR,
-        OP_BIT_RIGHT_SHIFT,
-        OP_BIT_XOR,
-        OP_CONCAT,
-        OP_DIV,
-        OP_INTEGER_DIV,
-        OP_MOD,
-        OP_MUL,
-        OP_SUB,
-        RELATION_AND,
-        RELATION_OR,
-        RELATION_NOT,
-        RELATION_BETWEEN_AND,
-        RELATION_EQUAL,
-        RELATION_GREATER_THAN,
-        RELATION_GREATER_EQUAL,
-        RELATION_LESS_THAN,
-        RELATION_LESS_EQUAL,
-        RELATION_NOT_EQUAL,
-        RELATION_IS_NULL,
-        RELATION_IN,
-        RELATION_LIKE,
-        RELATION_REGEX_MATCH,
+        // 常量
+        LITERAL,
+
+        // 算术
+        ARITHMETIC_OPERATOR,
+        // 逻辑
+        LOGIC_OPERATOR,
+        // 判断
+        JUDGE_OPERATOR,
+
+        // 变量引用
         COLUMN_REF,
-        COLUMN_ALIAS_REF,
+
+        // 函数
         FUNCTION,
         ;
+    }
+
+    static SQL toSQL(ExpressionSqlVisitor visitor, Expression expression) {
+        ExpressionSqlVisitor newVisitor = visitor.newSQL();
+        newVisitor.visit(expression);
+        return newVisitor.getSql();
     }
 }

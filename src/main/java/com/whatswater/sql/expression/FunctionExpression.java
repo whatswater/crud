@@ -38,4 +38,13 @@ public class FunctionExpression implements Expression {
     public List<Expression> getParams() {
         return params;
     }
+
+    @Override
+    public void visitAliasHolder(Handler handler) {
+        if (params != null) {
+            for (Expression expression: params) {
+                expression.visitAliasHolder(handler);
+            }
+        }
+    }
 }

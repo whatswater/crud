@@ -9,16 +9,15 @@ public interface TableVisitor {
     void visit(JoinedTable table);
     void visit(ComplexTable table);
 
-
-    static void visit(Table table, TableVisitor visitor) {
+    default void visit(Table table) {
         if (table instanceof DbTable) {
-            visitor.visit((DbTable<?>) table);
+            visit((DbTable<?>) table);
         } else if (table instanceof SelectedTable) {
-            visitor.visit((SelectedTable) table);
+            visit((SelectedTable) table);
         } else if (table instanceof JoinedTable) {
-            visitor.visit((JoinedTable) table);
+            visit((JoinedTable) table);
         } else if (table instanceof ComplexTable) {
-            visitor.visit((ComplexTable) table);
+            visit((ComplexTable) table);
         }
     }
 }

@@ -1,0 +1,10 @@
+package {{packageName}};
+
+import io.vertx.ext.sql.assist.SqlAssist;
+
+public class {{entityName}}Query {
+    public SqlAssist toSqlAssist() {
+        SqlAssist sqlAssist = new SqlAssist();
+        return sqlAssist;
+    }
+}

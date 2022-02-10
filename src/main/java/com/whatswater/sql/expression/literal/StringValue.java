@@ -1,6 +1,7 @@
 package com.whatswater.sql.expression.literal;
 
 
+import com.whatswater.sql.expression.Literal;
 
 /**
  * 字符串字面量
@@ -13,11 +14,6 @@ public class StringValue implements Literal {
 
     public StringValue(String value) {
         this.value = value;
-    }
-
-    @Override
-    public ExpressionType type() {
-        return ExpressionType.VALUE_STRING;
     }
 
     public String getValue() {

@@ -2,47 +2,38 @@ package com.whatswater.sql.dialect;
 
 
 import com.whatswater.sql.alias.Alias;
+import com.whatswater.sql.dialect.Dialect.SQL;
 import com.whatswater.sql.expression.Expression;
 import com.whatswater.sql.expression.reference.AliasColumnReference;
 import com.whatswater.sql.expression.reference.RawColumnReference;
 
-import java.util.List;
-
-public class SelectColumnToSqlVisitor extends ToSqlVisitor implements SelectColumnVisitor {
+public class SelectColumnToSqlVisitor implements SelectColumnVisitor {
     private ExpressionSqlVisitor expressionSqlVisitor;
+    private SQL sql;
 
-    public SelectColumnToSqlVisitor(ExpressionSqlVisitor expressionSqlVisitor) {
-        super();
+    public SelectColumnToSqlVisitor(SQL sql, ExpressionSqlVisitor expressionSqlVisitor) {
         this.expressionSqlVisitor = expressionSqlVisitor;
-    }
-
-    public SelectColumnToSqlVisitor(List<Object> params, ExpressionSqlVisitor expressionSqlVisitor) {
-        super(params);
-        this.expressionSqlVisitor = expressionSqlVisitor;
-    }
-
-    public SelectColumnToSqlVisitor(StringBuilder sql, List<Object> params, ExpressionSqlVisitor expressionSqlVisitor) {
-        super(sql, params);
-        this.expressionSqlVisitor = expressionSqlVisitor;
+        this.sql = sql;
     }
 
     @Override
     public void visit(AliasColumnReference colRef) {
-        sql.append(colRef.getTable().getAliasOrTableName()).append(".").append(colRef.getAliasOrColumnName());
+        sql.append(Expression.toSQL(expressionSqlVisitor, colRef));
     }
 
     @Override
     public void visit(Alias alias) {
-        Expression expression = alias.getExpression();
-
-        expressionSqlVisitor.clearAll();
-        expressionSqlVisitor.visit(expression);
-        params.addAll(expressionSqlVisitor.getParams());
-        sql.append(expressionSqlVisitor.getAndClearSql()).append(" ").append(alias.getAliasOrColumnName());
+        sql.append(Expression.toSQL(expressionSqlVisitor, alias.getExpression()))
+            .append(" ")
+            .append(alias.getAliasPlaceholder().getAlias());
     }
 
     @Override
     public void visit(RawColumnReference colRef) {
-        sql.append(colRef.getTable().getAliasOrTableName()).append(".").append(colRef.getAliasOrColumnName());
+        sql.append(Expression.toSQL(expressionSqlVisitor, colRef));
+    }
+
+    public SQL getSql() {
+        return sql;
     }
 }

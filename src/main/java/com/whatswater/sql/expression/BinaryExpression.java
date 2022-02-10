@@ -31,4 +31,10 @@ public abstract class BinaryExpression implements Expression {
     }
 
     public abstract String getOperatorString();
+
+    @Override
+    public void visitAliasHolder(Handler handler) {
+        left.visitAliasHolder(handler);
+        right.visitAliasHolder(handler);
+    }
 }

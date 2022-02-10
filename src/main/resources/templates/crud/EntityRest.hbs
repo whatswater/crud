@@ -1,0 +1,55 @@
+package {{packageName}};
+
+import com.whatswater.curd.CrudConst;
+import com.whatswater.curd.project.common.Assert;
+import com.whatswater.curd.project.common.RestResult;
+import com.whatswater.curd.project.common.Page;
+import com.whatswater.curd.project.common.PageResult;
+import io.vertx.core.Future;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+
+@Path("{{routePath}}")
+public class {{entityName}}Rest {
+    private final {{entityName}}Service {{captureEntityName}}Service;
+
+    public {{entityName}}Rest({{entityName}}Service {{captureEntityName}}Service) {
+        this.{{captureEntityName}}Service = {{captureEntityName}}Service;
+    }
+
+    @POST
+    @Path("/search")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Future<RestResult<PageResult<{{entityName}}>>> search(@BeanParam Page page, {{entityName}}Query query) {
+        if (query == null) {
+            query = new {{entityName}}Query();
+        }
+        return {{captureEntityName}}Service.search(page, query).map(RestResult::success);
+    }
+
+    @POST
+    @Path("/get")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    public Future<{{entityName}}> get(@QueryParam("id") Long {{captureEntityName}}Id) {
+        return {{captureEntityName}}Service.getById({{captureEntityName}}Id);
+    }
+
+    @POST
+    @Path("/insert")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Future<RestResult<Long>> insert({{entityName}} {{captureEntityName}}) {
+        return {{captureEntityName}}Service.insert({{captureEntityName}}).map(RestResult::success);
+    }
+
+    @PUT
+    @Path("/update")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Future<RestResult<Integer>> update({{entityName}} {{captureEntityName}}) {
+        Assert.assertNotNull({{captureEntityName}}.getId(), "Id不能为空");
+        return {{captureEntityName}}Service.update({{captureEntityName}}).map(RestResult::success);
+    }
+}

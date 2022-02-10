@@ -1,6 +1,8 @@
 package com.whatswater.sql.expression.literal;
 
 
+import com.whatswater.sql.expression.Literal;
+
 /**
  * 数字字面量
  * @author maxwell
@@ -56,10 +58,5 @@ public class NumberLiteral implements Literal {
 
     public Number getValue() {
         return value;
-    }
-
-    @Override
-    public ExpressionType type() {
-        return ExpressionType.VALUE_NUMBER;
     }
 }

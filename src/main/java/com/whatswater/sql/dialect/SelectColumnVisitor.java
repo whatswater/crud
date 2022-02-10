@@ -11,13 +11,13 @@ public interface SelectColumnVisitor {
     void visit(Alias alias);
     void visit(RawColumnReference rawColumnReference);
 
-    static void visit(SelectColumn selectColumn, SelectColumnVisitor visitor) {
+    default void visit(SelectColumn selectColumn) {
         if (selectColumn instanceof AliasColumnReference) {
-            visitor.visit((AliasColumnReference) selectColumn);
+            visit((AliasColumnReference) selectColumn);
         } else if (selectColumn instanceof Alias) {
-            visitor.visit((Alias) selectColumn);
+            visit((Alias) selectColumn);
         } else if (selectColumn instanceof RawColumnReference) {
-            visitor.visit((RawColumnReference) selectColumn);
+            visit((RawColumnReference) selectColumn);
         }
     }
 }

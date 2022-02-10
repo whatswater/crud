@@ -1,8 +1,11 @@
 package com.whatswater.sql.alias;
 
 
+import java.util.Set;
+
 public class AliasFactory {
     private int symbolVal = 1;
+    private Set<String> namedAlias;
 
     public String getNextAlias() {
         int h = symbolVal;
@@ -14,5 +17,9 @@ public class AliasFactory {
         }
         this.symbolVal++;
         return sv.toString();
+    }
+
+    public void addNamedAlias(String alias) {
+        namedAlias.add(alias);
     }
 }

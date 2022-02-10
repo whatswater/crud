@@ -22,6 +22,10 @@ public class Starter {
         config.put("datasource.connection.encode", "utf8mb4");
         config.put("datasource.connection.collation", "utf8mb4_general_ci");
         config.put("datasource.connection.serverTimeZone", "Asia/Shanghai");
+        config.put("static.folder", "D:/code/javascript/react-admin-starter/dist");
+        config.put("static.enabled", "0");
+        config.put("upload.tmpFolder", "/curd_tmp");
+        config.put("upload.fileFolder", "/curd_file");
 
         options.setConfig(config);
         Vertx vertx = Vertx.vertx();

@@ -1,8 +1,9 @@
 package com.whatswater.sql.statement;
 
+import com.whatswater.sql.alias.AliasHolderVisitor;
 import com.whatswater.sql.expression.Expression;
 
-public class OrderByElement {
+public class OrderByElement implements AliasHolderVisitor {
     private Expression expression;
     private boolean asc = true;
     private NullOrdering nullOrdering = NullOrdering.NULLS_FIRST;
@@ -35,6 +36,11 @@ public class OrderByElement {
             b.append(this.nullOrdering == NullOrdering.NULLS_FIRST ? "NULLS FIRST" : "NULLS LAST");
         }
         return b.toString();
+    }
+
+    @Override
+    public void visitAliasHolder(Handler handler) {
+        expression.visitAliasHolder(handler);
     }
 
     public enum NullOrdering {

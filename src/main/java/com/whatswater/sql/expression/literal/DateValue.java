@@ -1,5 +1,7 @@
 package com.whatswater.sql.expression.literal;
 
+import com.whatswater.sql.expression.Literal;
+
 import java.time.LocalDate;
 
 public class DateValue implements Literal {
@@ -11,10 +13,5 @@ public class DateValue implements Literal {
 
     public LocalDate getValue() {
         return value;
-    }
-
-    @Override
-    public ExpressionType type() {
-        return ExpressionType.VALUE_DATE;
     }
 }

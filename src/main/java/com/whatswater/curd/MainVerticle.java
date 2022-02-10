@@ -10,9 +10,10 @@ import com.whatswater.asyncmodule.ModuleSystem;
 import java.util.Map;
 import java.util.TreeMap;
 
-
+// 目前只是单Verticle运行，多Verticle运行需考虑vertx、router、startPromise的共享问题（GlobalModule可能不太适用了，并且router需要注册多次？）
+// 需要有动态的直接添加module对象的能力
 public class MainVerticle extends AbstractVerticle {
-    private ModuleSystem moduleSystem;
+    private static ModuleSystem moduleSystem;
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
@@ -26,12 +27,12 @@ public class MainVerticle extends AbstractVerticle {
         module.setStartPromise(startPromise);
         module.setVertx(vertx);
 
-        ModuleSystem moduleSystem = new ModuleSystem(10);
+        ModuleSystem moduleSystem = new ModuleSystem(9);
         ModuleFactory moduleFactory = new NewInstanceModuleFactory(new ParentClassLoaderProxy());
         moduleSystem.registerModuleFactory(moduleFactory);
 
         Map<String, Module> baseModules = new TreeMap<>();
         baseModules.put("init:global", module);
-        moduleSystem.loadModule("NewInstance:com.whatswater.curd.project.user.UserModule:0.1", baseModules);
+        moduleSystem.loadModule("NewInstance:com.whatswater.curd.InitModule:0.1", baseModules);
     }
 }

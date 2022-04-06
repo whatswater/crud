@@ -10,7 +10,7 @@ public class CrudJsonValueReader extends ObjectMapperHolder implements ValueRead
 
     @Override
     public Object read(String value, Class<Object> type) throws Throwable {
-        if (StringUtils.isNullOrEmptyTrimmed(value)) {
+        if (StringUtils.isEmptyTrimmed(value)) {
             return null;
         }
 

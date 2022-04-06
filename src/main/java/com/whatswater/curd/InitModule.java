@@ -24,6 +24,7 @@ public class InitModule implements Module {
         moduleInfo.require(NewInstanceModuleFactory.MODULE_PATH_PROJECT_REWARD_CATEGORY, "projectRewardCategoryService");
         moduleInfo.require(NewInstanceModuleFactory.MODULE_PATH_PROJECT_REWARD_ITEM, "projectRewardItemService");
         moduleInfo.require(NewInstanceModuleFactory.MODULE_PATH_PROJECT_REWARD_APPLY, "projectRewardApplyService");
+        moduleInfo.require(NewInstanceModuleFactory.MODULE_PATH_NAMESPACE, "namespaceSchemaDataService");
     }
 
     @Override

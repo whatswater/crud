@@ -3,15 +3,15 @@ package com.whatswater.curd.project.sys.employee;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
-import com.whatswater.curd.CrudConst;
 import com.whatswater.curd.project.common.CrudUtils;
 import com.whatswater.curd.project.common.Page;
 import com.whatswater.curd.project.common.PageResult;
 import com.whatswater.curd.project.sys.organization.Organization;
 import com.whatswater.curd.project.sys.organization.OrganizationService;
+import com.whatswater.sql.executor.TransactionService;
+
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.sql.assist.SQLExecute;
 import io.vertx.ext.sql.assist.SqlAssist;
 import io.vertx.mysqlclient.MySQLClient;
 import io.vertx.mysqlclient.MySQLPool;
@@ -22,12 +22,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 
-public class EmployeeService {
+public class EmployeeService implements TransactionService<EmployeeService> {
     private final EmployeeSQL employeeSQL;
     private OrganizationService organizationService;
 
     public EmployeeService(MySQLPool pool) {
-        this.employeeSQL = new EmployeeSQL(SQLExecute.createMySQL(pool));
+        //this.employeeSQL = new EmployeeSQL(SQLExecute.createMySQL(pool));
+        this.employeeSQL = null;
     }
 
     public Future<PageResult<EmployeeListVo>> search(Page page, EmployeeQuery query) {

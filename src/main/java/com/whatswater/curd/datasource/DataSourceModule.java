@@ -30,6 +30,8 @@ public class DataSourceModule implements Module {
         if (config != null && vertx != null) {
             MySQLPool pool = createDataSource();
             consumer.exportObject("datasource", pool);
+            VertxExecutor vertxExecutor = new VertxExecutor(pool);
+            consumer.exportObject("dbExecutor", vertxExecutor);
         }
     }
 

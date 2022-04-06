@@ -5,6 +5,7 @@ public class StringUtils {
     public static final String EMPTY = "";
     public static final String DOT = ".";
     public static final String COMMA = ",";
+    public static final String BLANK = " ";
 
 
     public static boolean isEmpty(String value) {

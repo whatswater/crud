@@ -1,5 +1,7 @@
 package com.whatswater.sql.dialect;
 
+import com.whatswater.sql.alias.Alias;
+import com.whatswater.sql.alias.AliasPlaceholder;
 import com.whatswater.sql.dialect.Dialect.SQL;
 import com.whatswater.sql.expression.FunctionExpression;
 import com.whatswater.sql.expression.literal.NumberLiteral;
@@ -9,12 +11,12 @@ import com.whatswater.sql.table.AliasTable;
 import com.whatswater.sql.table.DbTable;
 import com.whatswater.sql.table.Table;
 import com.whatswater.sql.utils.CollectionUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.junit.Assert;
 import org.junit.Test;
 
 // todo 编写更多的单元测试代码
 public class MysqlDialectTest {
-
     @Test
     public void testUpdateOneTable() {
         DbTable<User> dbTable = UserDbColumn.dbTable.newAlias();
@@ -101,9 +103,8 @@ public class MysqlDialectTest {
 
     @Test
     public void testDbQuery() {
-        Query<?> query = new Query<Integer>(UserDbColumn.dbTable.newAlias(), null);
         MysqlDialect dialect = new MysqlDialect();
-        SQL sql = dialect.toSql(query);
+        SQL sql = dialect.toSql(UserDbColumn.dbTable.newAlias());
 
         Assert.assertEquals("select * from user a", sql.getSql().toString());
         Assert.assertTrue(CollectionUtils.isEmpty(sql.getParams()));
@@ -116,9 +117,8 @@ public class MysqlDialectTest {
             .orderBy(UserDbColumn.code)
             .select(UserDbColumn.id, UserDbColumn.code)
             .limit(10);
-        Query<?> query = new Query<Integer>(table, null);
         MysqlDialect dialect = new MysqlDialect();
-        SQL sql = dialect.toSql(query);
+        SQL sql = dialect.toSql(table);
 
         System.out.println(sql.getSql().toString());
     }
@@ -137,9 +137,8 @@ public class MysqlDialectTest {
 
         Table table = table2.join(table1, table1.columnReference(UserDbColumn.code.getColumnName())
             .eq(table2.columnReference(UserDbColumn.code.getColumnName())));
-        Query<?> query = new Query<Integer>(table, null);
         MysqlDialect dialect = new MysqlDialect();
-        SQL sql = dialect.toSql(query);
+        SQL sql = dialect.toSql(table);
 
         System.out.println(sql.getSql().toString());
     }
@@ -159,9 +158,21 @@ public class MysqlDialectTest {
         Table table = table2.join(table1, table1.columnReference(UserDbColumn.code.getColumnName())
             .eq(table2.columnReference(UserDbColumn.code.getColumnName())))
             .where(new NumberLiteral(1).eq(new StringValue("1")));
-        Query<?> query = new Query<Integer>(table, null);
         MysqlDialect dialect = new MysqlDialect();
-        SQL sql = dialect.toSql(query);
+        SQL sql = dialect.toSql(table);
+
+        System.out.println(sql.getSql().toString());
+    }
+
+    @Test
+    public void testComplexTable2() {
+        SelectColumn countColumn = new Alias(new FunctionExpression("count", UserDbColumn.id), new AliasPlaceholder());
+
+        Table table = UserDbColumn.dbTable
+            .where(UserDbColumn.status.eq(1)).groupBy(UserDbColumn.gender)
+            .select(UserDbColumn.phone.like("155%"), countColumn);
+        MysqlDialect dialect = new MysqlDialect();
+        SQL sql = dialect.toSql(table);
 
         System.out.println(sql.getSql().toString());
     }

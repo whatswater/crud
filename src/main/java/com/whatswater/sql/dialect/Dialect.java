@@ -15,7 +15,7 @@ import java.util.List;
 public interface Dialect {
     SQL toSql(Update update);
     SQL toSql(Delete delete);
-    SQL toSql(Query<?> query);
+    SQL toSql(Table table);
     SQL toSql(Insert<?> insert);
 
     class SQL {

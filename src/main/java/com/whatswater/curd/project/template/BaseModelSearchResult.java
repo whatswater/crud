@@ -1,4 +1,4 @@
-package com.whatswater.curd.template;
+package com.whatswater.curd.project.template;
 
 import com.whatswater.curd.project.common.LoadPageData.DictItem;
 import com.whatswater.curd.project.common.Page;

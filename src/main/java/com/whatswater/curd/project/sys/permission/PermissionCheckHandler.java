@@ -20,7 +20,7 @@ public class PermissionCheckHandler implements Handler<RoutingContext> {
     @Override
     public void handle(RoutingContext rc) {
         String path = rc.request().path();
-        if ("/login/admin".equals(path) || "/login/employee".equals(path)) {
+        if ("/login/admin".equals(path) || "/login/employee".equals(path) || "/business/namespace/list".equals(path)) {
             rc.next();
             return;
         }

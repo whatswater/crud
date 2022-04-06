@@ -68,4 +68,5 @@ public class NewInstanceModuleFactory implements ModuleFactory {
     public static final String MODULE_PATH_FLOW_ASSIGNEE = "NewInstance:com.whatswater.curd.project.module.workflow.assignee.AssigneeModule:0.1";
     public static final String MODULE_PATH_FLOW_ENGINE = "NewInstance:com.whatswater.curd.project.module.workflow.flowEngine.FlowEngineModule:0.1";
 
+    public static final String MODULE_PATH_NAMESPACE = "NewInstance:com.whatswater.curd.project.module.namespace.NamespaceModule:0.1";
 }

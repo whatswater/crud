@@ -1,4 +1,4 @@
-package com.whatswater.curd.template;
+package com.whatswater.curd.project.template;
 
 
 public enum PrimaryKeyGeneratorTypeEnum {

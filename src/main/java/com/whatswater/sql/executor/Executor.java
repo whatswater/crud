@@ -1,10 +1,11 @@
 package com.whatswater.sql.executor;
 
 
-import java.util.List;
+import com.whatswater.sql.dialect.Dialect.SQL;
+import io.vertx.core.Future;
+import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowSet;
 
 public interface Executor {
-    void query(String sql, Object[] params, QueryCallBack queryCallBack);
-    void update(String sql, Object[] params);
-    void batchUpdate(String sql, List<Object[]> batchParams);
+    Future<RowSet<Row>> query(SQL sql);
 }

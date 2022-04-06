@@ -81,15 +81,15 @@ public class MysqlDialect implements Dialect {
     }
 
     @Override
-    public SQL toSql(Query<?> query) {
-        Map<ReferenceExpression, ReferenceExpression> symbolReplaceMap = query.getTable().reBindColumnReference();
+    public SQL toSql(Table table) {
+        Map<ReferenceExpression, ReferenceExpression> symbolReplaceMap = table.reBindColumnReference();
         ExpressionSqlVisitor expressionSqlVisitor = new ExpressionSqlVisitor(new SQL());
         expressionSqlVisitor.setSymbolReplaceMap(symbolReplaceMap);
 
-        setAlias(query.getTable());
+        setAlias(table);
         TableSqlVisitor tableVisitor = new TableSqlVisitor(expressionSqlVisitor);
-        tableVisitor.visit(query.getTable());
-        if (query.getTable().isSqlQuery()) {
+        tableVisitor.visit(table);
+        if (table.isSqlQuery()) {
             return tableVisitor.getSql();
         } else {
             SQL sql = new SQL(new StringBuilder("select * from "));

@@ -6,7 +6,6 @@ import com.whatswater.curd.project.common.CrudUtils;
 import com.whatswater.sql.utils.StringUtils;
 import io.vertx.ext.sql.assist.SqlAssist;
 
-import javax.ws.rs.QueryParam;
 import java.time.LocalDateTime;
 import java.util.List;
 

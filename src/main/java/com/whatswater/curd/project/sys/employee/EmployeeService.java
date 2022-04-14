@@ -12,6 +12,7 @@ import com.whatswater.sql.executor.TransactionService;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.sql.assist.SQLExecute;
 import io.vertx.ext.sql.assist.SqlAssist;
 import io.vertx.mysqlclient.MySQLClient;
 import io.vertx.mysqlclient.MySQLPool;
@@ -26,9 +27,22 @@ public class EmployeeService implements TransactionService<EmployeeService> {
     private final EmployeeSQL employeeSQL;
     private OrganizationService organizationService;
 
-    public EmployeeService(MySQLPool pool) {
-        //this.employeeSQL = new EmployeeSQL(SQLExecute.createMySQL(pool));
+    public EmployeeService() {
         this.employeeSQL = null;
+    }
+
+    public EmployeeService(OrganizationService organizationService) {
+        this.employeeSQL = null;
+        this.organizationService = organizationService;
+    }
+
+    public EmployeeService(MySQLPool pool) {
+        this.employeeSQL = new EmployeeSQL(SQLExecute.createMySQL(pool));
+    }
+
+    private EmployeeService(EmployeeSQL employeeSQL, OrganizationService organizationService) {
+        this.employeeSQL = employeeSQL;
+        this.organizationService = organizationService;
     }
 
     public Future<PageResult<EmployeeListVo>> search(Page page, EmployeeQuery query) {

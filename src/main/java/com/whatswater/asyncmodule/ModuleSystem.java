@@ -141,6 +141,7 @@ public class ModuleSystem {
                 return moduleInfo;
             }
             catch(Exception e) {
+                e.printStackTrace();
                 throw new ModuleSystemException("can't find module factory when instance module: " + path, e);
             }
         }

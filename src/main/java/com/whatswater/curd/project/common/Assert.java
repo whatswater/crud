@@ -1,14 +1,14 @@
 package com.whatswater.curd.project.common;
 
 
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
-import org.apache.commons.collections.CollectionUtils;
 
 import java.util.Collection;
 
 public abstract class Assert {
     public static void assertNotEmpty(Collection<?> valueList, String msg) {
-        if (CollectionUtils.isEmpty(valueList)) {
+        if (CollectionUtil.isEmpty(valueList)) {
             throw ErrorCodeEnum.PARAM_NO_VALID.toException(msg);
         }
     }

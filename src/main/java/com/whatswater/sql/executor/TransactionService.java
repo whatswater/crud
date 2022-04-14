@@ -1,14 +1,12 @@
 package com.whatswater.sql.executor;
 
 
-import io.vertx.sqlclient.Transaction;
-
 public interface TransactionService<T extends TransactionService<T>> {
-    default <T> T bindTransaction(Transaction transaction) {
+    default T bindNewSqlSession(SqlSession sqlSession) {
         return null;
     }
 
-    default Transaction getCurrentTransaction() {
+    default SqlSession getCurrentSqlSession() {
         return null;
     }
 }

@@ -1,12 +1,10 @@
 package com.whatswater.curd.project.module.todo;
 
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import com.whatswater.curd.project.common.CrudUtils;
 import com.whatswater.curd.project.common.CrudUtils.SameFutureBuilder;
-import com.whatswater.curd.project.common.CrudUtils.Tuple;
 import com.whatswater.curd.project.common.CrudUtils.Tuple2;
 import com.whatswater.curd.project.common.CrudUtils.Tuple3;
 import com.whatswater.curd.project.common.ErrorCodeEnum;
@@ -22,15 +20,11 @@ import com.whatswater.curd.project.sys.employee.EmployeeService;
 import com.whatswater.curd.project.sys.uid.UidGeneratorService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.sql.assist.SQLExecute;
 import io.vertx.ext.sql.assist.SqlAssist;
 import io.vertx.mysqlclient.MySQLClient;
-import io.vertx.mysqlclient.MySQLPool;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 

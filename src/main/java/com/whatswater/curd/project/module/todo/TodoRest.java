@@ -7,6 +7,7 @@ import com.whatswater.curd.project.common.PageResult;
 import com.whatswater.curd.project.common.RestResult;
 import com.whatswater.curd.project.module.workflow.event.GenerateTaskContext;
 import com.whatswater.curd.project.module.workflow.event.UpdateTaskStatusContext;
+import com.zandero.rest.annotation.Get;
 import com.zandero.rest.annotation.Post;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
@@ -18,9 +19,11 @@ import java.util.List;
 @Path("/business/todo")
 public class TodoRest {
     private final TodoService todoService;
+    private final ITodoAwaitService todoAwaitService;
 
-    public TodoRest(TodoService todoService) {
+    public TodoRest(TodoService todoService, ITodoAwaitService todoAwaitService) {
         this.todoService = todoService;
+        this.todoAwaitService = todoAwaitService;
     }
 
     // 从workflow来的任务，任务状态的变化也通过此接口
@@ -40,7 +43,22 @@ public class TodoRest {
         if (query == null) {
             query = new TodoQuery();
         }
-        return todoService.search(page, query).map(RestResult::success);
+        return todoAwaitService.search(page, query).map(RestResult::success);
+    }
+
+    @Get
+    @Path("getByTaskId")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    public Future<RestResult<Todo>> getByTaskId(@QueryParam("taskId") Long taskId) {
+        Assert.assertNotNull(taskId, "任务Id不能为空");
+        return todoAwaitService.getByTaskId(taskId).map(RestResult::success);
+    }
+
+    @Get
+    @Path("generateString")
+    @Produces(CrudConst.APPLICATION_JSON_UTF8)
+    public Future<RestResult<String>> generateString() {
+        return todoAwaitService.generateString().map(RestResult::success);
     }
 
     @POST

@@ -3,15 +3,16 @@ package com.whatswater.async;
 
 import org.objectweb.asm.ClassWriter;
 
+import java.util.List;
 import java.util.Map;
 
 public class GenerateClassData {
     private ClassWriter classWriter;
     private String className;
     private ClassType classType;
-    private Map<Integer, String[]> names;
+    private Map<Integer, List<LocalSetterInfo>> names;
 
-    public GenerateClassData(ClassWriter classWriter, String className, ClassType classType, Map<Integer, String[]> names) {
+    public GenerateClassData(ClassWriter classWriter, String className, ClassType classType, Map<Integer, List<LocalSetterInfo>> names) {
         this.classWriter = classWriter;
         this.className = className;
         this.classType = classType;
@@ -42,11 +43,11 @@ public class GenerateClassData {
         this.classType = classType;
     }
 
-    public Map<Integer, String[]> getNames() {
+    public Map<Integer, List<LocalSetterInfo>> getNames() {
         return names;
     }
 
-    public void setNames(Map<Integer, String[]> names) {
+    public void setNames(Map<Integer, List<LocalSetterInfo>> names) {
         this.names = names;
     }
 

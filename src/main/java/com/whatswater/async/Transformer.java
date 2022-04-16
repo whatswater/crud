@@ -16,10 +16,10 @@ import java.util.Map;
 import static org.objectweb.asm.Opcodes.*;
 
 // TODO
-// 1、处理方法异常表的问题
-// 2、若原来的类中存在内部类，内部类会被外部的classloader加载，导致权限出现问题; 同时Task需要访问原类的变量
+// 1、处理异步任务的异常无法catch问题
+// 2、处理内部权限问题
+// 3、开发maven插件
 public class Transformer {
-    public static final String TASK_CLASS_PACKAGE = "com/whatswater/async/task/";
     public static final String TASK_CLASS_NAME = "Task";
     public static final String JAVA_FILE_SUFFIX = ".java";
     public static final String TASK_EXTEND_CLASS = "java/lang/Object";
@@ -29,6 +29,8 @@ public class Transformer {
 
     public static final String HANDLER_FIELD_DESC = "Lcom/whatswater/async/handler/AwaitTaskHandler;";
     public static final String HANDLER_CLASS_NAME = "com/whatswater/async/handler/AwaitTaskHandler";
+    public static final String FUTURE_INTERFACE_NAME = "io/vertx/core/Future";
+    public static final String OBJECT_CLASS_DESC = "Ljava/lang/Object;";
 
     private final String path;
     private final ClassReader reader;
@@ -56,8 +58,11 @@ public class Transformer {
         for (MethodNode methodNode: classNode.methods) {
             if (TransformerHelper.isAsyncMethod(methodNode)) {
                 String suffix = TransformerHelper.nextClassSuffix();
-                List<GenerateClassData> classDataList = generateClass(suffix, methodNode);
-                MethodNode replacement = TransformerHelper.generateCallTaskMethod(methodNode, classDataList);
+                TaskClassGenerator taskClassGenerator = new TaskClassGenerator(classNode, methodNode, suffix);
+                taskClassGenerator.generate();
+                List<GenerateClassData> classDataList = taskClassGenerator.getGenerateClassDataList();
+
+                MethodNode replacement = TransformerHelper.generateCallTaskMethod(classNode, methodNode, classDataList);
                 if (replacement == null) {
                     continue;
                 }
@@ -69,6 +74,14 @@ public class Transformer {
                     classNameAndData.setData(classData.getClassWriter().toByteArray());
 
                     classNameAndDataList.add(classNameAndData);
+
+                    String name = classData.getClassName();
+                    classData.getClassWriter().visitInnerClass(
+                        name,
+                        classNode.name,
+                        name.substring(name.lastIndexOf("$") + 1),
+                        ACC_PRIVATE | ACC_STATIC | ACC_FINAL
+                    );
                 }
             }
         }
@@ -81,6 +94,15 @@ public class Transformer {
         }
         final ClassWriter cw = new ClassWriter(0);
         classNode.accept(cw);
+        for (ClassNameAndData classNameAndData: classNameAndDataList) {
+            String name = classNameAndData.getClassName();
+            cw.visitInnerClass(
+                name,
+                classNode.name,
+                name.substring(name.lastIndexOf("$") + 1),
+                ACC_PRIVATE | ACC_STATIC | ACC_FINAL
+            );
+        }
 
         byte[] bytes = cw.toByteArray();
         ClassNameAndData classNameAndData = new ClassNameAndData();
@@ -101,22 +123,31 @@ public class Transformer {
         List<GenerateClassData> ret = new ArrayList<>();
 
         ClassWriter taskClassWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        String className = TASK_CLASS_PACKAGE + TASK_CLASS_NAME + suffix;
-        taskClassWriter.visit(V1_8, ACC_PUBLIC | ACC_SUPER, className, null, TASK_EXTEND_CLASS, new String[] { TASK_INTERFACE_NAME });
-        taskClassWriter.visitSource(TASK_CLASS_NAME + suffix + JAVA_FILE_SUFFIX, null);
+        String taskClassName = classNode.name + '$' + TASK_CLASS_NAME + suffix;
+        taskClassWriter.visit(V1_8, ACC_PUBLIC | ACC_SUPER, taskClassName, null, TASK_EXTEND_CLASS, new String[] { TASK_INTERFACE_NAME });
+        taskClassWriter.visitSource(TransformerHelper.getSimpleNameByClassName(classNode.name) + JAVA_FILE_SUFFIX, null);
 
         Frame<BasicValue>[] frames = TransformerHelper.computeFrame(classNode.name, methodNode);
-        Map<Integer, String[]> propertyNameAndDescList = TransformerHelper.copyLocalVariablesToProperties(className, methodNode, taskClassWriter);
+        Map<Integer, List<LocalSetterInfo>> propertyNameAndDescList = TransformerHelper.copyLocalVariablesToProperties(taskClassName, methodNode, taskClassWriter);
         String futurePropertyName = TransformerHelper.addFutureProperty(taskClassWriter);
         String handlerPropertyName = TransformerHelper.addHandlerProperty(taskClassWriter);
         String stackHolderPropertyName = TransformerHelper.addStackHolderProperty(taskClassWriter);
         String[] completeMethodNameAndDesc = TransformerHelper.addCompleteMethod(taskClassWriter);
-        TransformerHelper.addEmptyConstructor(taskClassWriter, className, futurePropertyName);
+        TransformerHelper.addEmptyConstructor(taskClassWriter, taskClassName, futurePropertyName);
         {
             int awaitCount = TransformerHelper.awaitInvokeCount(methodNode);
             MethodVisitor methodVisitor = taskClassWriter.visitMethod(ACC_PUBLIC, METHOD_NAME_MOVE_TO_NEXT, METHOD_DESC_MOVE_TO_NEXT, null, null);
             methodVisitor.visitCode();
+            for (TryCatchBlockNode tryCatchBlockNode: methodNode.tryCatchBlocks) {
+                methodVisitor.visitTryCatchBlock(
+                    tryCatchBlockNode.start.getLabel(),
+                    tryCatchBlockNode.end.getLabel(),
+                    tryCatchBlockNode.handler.getLabel(),
+                    tryCatchBlockNode.type
+                );
+            }
 
+            TryCatchBlockNodeStack tryCacheStack = new TryCatchBlockNodeStack(methodNode.tryCatchBlocks);
             Label defaultLabel = new Label();
             Label[] switchLabels = new Label[awaitCount + 1];
             for (int i = 0; i < awaitCount + 1; i++) {
@@ -173,26 +204,26 @@ public class Transformer {
                                 }
                         }
                         methodVisitor.visitMethodInsn(INVOKESPECIAL, HANDLER_CLASS_NAME, "<init>", "(Lcom/whatswater/async/Task;I)V", false);
-                        methodVisitor.visitFieldInsn(PUTFIELD, className, handlerPropertyName, HANDLER_FIELD_DESC);
+                        methodVisitor.visitFieldInsn(PUTFIELD, taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
 
                         methodVisitor.visitVarInsn(ALOAD, 0);
-                        methodVisitor.visitFieldInsn(GETFIELD,  className, handlerPropertyName, HANDLER_FIELD_DESC);
+                        methodVisitor.visitFieldInsn(GETFIELD,  taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
                         // 栈顶的对象在此使用，调用onComplete后，栈顶存在一个新的Future对象
-                        methodVisitor.visitMethodInsn(INVOKEINTERFACE, "io/vertx/core/Future", "onComplete", "(Lio/vertx/core/Handler;)Lio/vertx/core/Future;", true);
+                        methodVisitor.visitMethodInsn(INVOKEINTERFACE, FUTURE_INTERFACE_NAME, "onComplete", "(Lio/vertx/core/Handler;)Lio/vertx/core/Future;", true);
                         // 丢失掉新的Future对象
                         methodVisitor.visitInsn(POP);
 
                         if (currentFrame != null && currentFrame.getStackSize() > 1) {
-                            String stackClassName = TASK_CLASS_PACKAGE + "StackHolder" + suffix + labelIndex;
+                            String stackClassName = classNode.name +  "$StackHolder" + suffix + labelIndex;
                             ClassWriter stackClassWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-                            Map<Integer, String[]> stackHolderNameList = TransformerHelper.generateStackMapHolder(stackClassWriter, stackClassName, currentFrame);
-                            ret.add(new GenerateClassData(stackClassWriter, stackClassName, ClassType.STACK_HOLDER, stackHolderNameList));
+                            Map<Integer, String[]> stackHolderNameList = TransformerHelper.generateStackMapHolder(classNode, stackClassWriter, stackClassName, currentFrame);
+                            ret.add(new GenerateClassData(stackClassWriter, stackClassName, ClassType.STACK_HOLDER, null));
 
                             methodVisitor.visitVarInsn(ALOAD, 0);
                             methodVisitor.visitTypeInsn(NEW, stackClassName);
                             methodVisitor.visitInsn(DUP);
                             methodVisitor.visitMethodInsn(INVOKESPECIAL, stackClassName, "<init>", "()V", false);
-                            methodVisitor.visitFieldInsn(PUTFIELD, className, stackHolderPropertyName, "Ljava/lang/Object;");
+                            methodVisitor.visitFieldInsn(PUTFIELD, taskClassName, stackHolderPropertyName, OBJECT_CLASS_DESC);
 
                             // 保存栈数据
                             for (int index = currentFrame.getStackSize() - 2; index >= 0; index--) {
@@ -204,7 +235,7 @@ public class Transformer {
                                 String setterName = names[2];
                                 String setterDesc = names[3];
                                 methodVisitor.visitVarInsn(ALOAD, 0);
-                                methodVisitor.visitFieldInsn(GETFIELD, className, stackHolderPropertyName, "Ljava/lang/Object;");
+                                methodVisitor.visitFieldInsn(GETFIELD, taskClassName, stackHolderPropertyName, OBJECT_CLASS_DESC);
                                 methodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
                                 methodVisitor.visitMethodInsn(INVOKESTATIC, stackClassName, setterName, setterDesc, false);
                             }
@@ -221,7 +252,7 @@ public class Transformer {
                                 String propertyName = names[0];
                                 String propertyDesc = names[1];
                                 methodVisitor.visitVarInsn(ALOAD, 0);
-                                methodVisitor.visitFieldInsn(GETFIELD, className, stackHolderPropertyName, "Ljava/lang/Object;");
+                                methodVisitor.visitFieldInsn(GETFIELD, taskClassName, stackHolderPropertyName, OBJECT_CLASS_DESC);
                                 methodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
                                 methodVisitor.visitFieldInsn(GETFIELD, stackClassName, propertyName, propertyDesc);
                             }
@@ -231,7 +262,7 @@ public class Transformer {
                         }
                         // 获取异步任务的执行结果
                         methodVisitor.visitVarInsn(ALOAD, 0);
-                        methodVisitor.visitFieldInsn(GETFIELD, className, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
+                        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
                         methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/handler/AwaitTaskHandler", "getResult", "()Ljava/lang/Object;", false);
                     } else if (TransformerHelper.isAsyncCall(methodInsnNode)) {
                         methodVisitor.visitInsn(NOP);
@@ -257,21 +288,26 @@ public class Transformer {
                 } else if (abstractInsnNode instanceof IincInsnNode) {
                     IincInsnNode iincInsnNode = (IincInsnNode) abstractInsnNode;
                     int index = iincInsnNode.var;
-                    String[] names = propertyNameAndDescList.get(index);
-                    String propertyName = names[0];
-                    String propertyDesc = names[1];
-                    String setterName = names[2];
-                    String setterDesc = names[3];
+                    List<LocalSetterInfo> localSetterInfoList = propertyNameAndDescList.get(index);
+                    LocalSetterInfo localSetterInfo = TransformerHelper.findSetterMethod(localSetterInfoList, Type.INT_TYPE.getDescriptor());
+                    if (localSetterInfo == null) {
+                        throw new RuntimeException("iinc var not right");
+                    }
+                    String propertyName = localSetterInfo.getName();
+                    String propertyDesc = localSetterInfo.getDesc();
+                    String setterName = localSetterInfo.getSetterName();
+                    String setterDesc = localSetterInfo.getSetterDesc();
 
                     methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitFieldInsn(GETFIELD, className, propertyName, propertyDesc);
+                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, propertyName, propertyDesc);
                     methodVisitor.visitVarInsn(ILOAD, iincInsnNode.incr);
                     methodVisitor.visitInsn(IADD);
                     methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitMethodInsn(INVOKESTATIC, className, setterName, setterDesc, false);
+                    methodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, setterName, setterDesc, false);
                 } else if (abstractInsnNode instanceof LabelNode) {
                     LabelNode labelNode = (LabelNode) abstractInsnNode;
                     methodVisitor.visitLabel(labelNode.getLabel());
+                    tryCacheStack.consumerLabelNode(labelNode);
                 } else if (abstractInsnNode instanceof MultiANewArrayInsnNode) {
                     MultiANewArrayInsnNode multiANewArrayInsnNode = (MultiANewArrayInsnNode) abstractInsnNode;
                     methodVisitor.visitMultiANewArrayInsn(multiANewArrayInsnNode.desc, multiANewArrayInsnNode.dims);
@@ -282,13 +318,10 @@ public class Transformer {
                     TypeInsnNode typeInsnNode = (TypeInsnNode) abstractInsnNode;
                     methodVisitor.visitTypeInsn(typeInsnNode.getOpcode(), typeInsnNode.desc);
                 } else if (abstractInsnNode instanceof VarInsnNode) {
+                    Frame<BasicValue> currentFrame = frames[i];
                     VarInsnNode varInsnNode = (VarInsnNode) abstractInsnNode;
                     int index = varInsnNode.var;
-                    String[] names = propertyNameAndDescList.get(index);
-                    String propertyName = names[0];
-                    String propertyDesc = names[1];
-                    String setterName = names[2];
-                    String setterDesc = names[3];
+                    List<LocalSetterInfo> localSetterInfoList = propertyNameAndDescList.get(index);
 
                     switch (varInsnNode.getOpcode()) {
                         case ILOAD:
@@ -296,17 +329,32 @@ public class Transformer {
                         case FLOAD:
                         case DLOAD:
                         case ALOAD:
+                        {
+                            BasicValue basicValue = currentFrame.getLocal(index);
+                            LocalSetterInfo localSetterInfo = TransformerHelper.findSetterMethod(localSetterInfoList, basicValue.getType().getDescriptor());
+                            if (localSetterInfo == null) {
+                                throw new RuntimeException("load exception");
+                            }
                             methodVisitor.visitVarInsn(ALOAD, 0);
-                            methodVisitor.visitFieldInsn(GETFIELD, className, propertyName, propertyDesc);
+                            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, localSetterInfo.getName(), localSetterInfo.getDesc());
                             break;
+                        }
                         case ISTORE:
                         case LSTORE:
                         case FSTORE:
                         case DSTORE:
                         case ASTORE:
+                        {
+                            BasicValue basicValue = currentFrame.getStack(currentFrame.getStackSize() - 1);
+                            LocalSetterInfo localSetterInfo = TransformerHelper.findSetterMethod(localSetterInfoList, basicValue.getType().getDescriptor());
+                            if (localSetterInfo == null) {
+                                throw new RuntimeException("store exception");
+                            }
+
                             methodVisitor.visitVarInsn(ALOAD, 0);
-                            methodVisitor.visitMethodInsn(INVOKESTATIC, className,setterName, setterDesc, false);
+                            methodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, localSetterInfo.getSetterName(), localSetterInfo.getSetterDesc(), false);
                             break;
+                        }
                         case RET:
                             throw new IllegalArgumentException("un support opcode ret");
                     }
@@ -349,7 +397,7 @@ public class Transformer {
                             throw new IllegalArgumentException("async function must return Future");
                         case ARETURN:
                             {
-                                AbstractInsnNode node = methodNode.instructions.get(i - 1);
+                                AbstractInsnNode node = TransformerHelper.getPrevInsnNode(methodNode.instructions, i);
                                 if (!(node instanceof MethodInsnNode)) {
                                     throw new IllegalArgumentException("async must appear in return statement");
                                 }
@@ -368,7 +416,7 @@ public class Transformer {
                                     }
 
                                     methodVisitor.visitVarInsn(ALOAD, 0);
-                                    methodVisitor.visitFieldInsn(GETFIELD, className, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
+                                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
                                     methodVisitor.visitInsn(ACONST_NULL);
                                     methodVisitor.visitMethodInsn(
                                         INVOKEVIRTUAL,
@@ -390,10 +438,10 @@ public class Transformer {
                                         maxStackSize = Math.max(maxStackSize, newMax);
                                     }
                                     methodVisitor.visitVarInsn(ALOAD, 0);
-                                    methodVisitor.visitFieldInsn(GETFIELD, className, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
+                                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
                                     methodVisitor.visitMethodInsn(
                                         INVOKESTATIC,
-                                        className,
+                                        taskClassName,
                                         completeMethodNameAndDesc[0],
                                         completeMethodNameAndDesc[1],
                                         false
@@ -403,6 +451,7 @@ public class Transformer {
                             }
                             break;
                         default:
+                            // LASTORE等操作数组的指令，不需要特殊处理
                             methodVisitor.visitInsn(abstractInsnNode.getOpcode());
                     }
                 }
@@ -415,9 +464,9 @@ public class Transformer {
             // default label
             methodVisitor.visitLabel(defaultLabel);
             methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD, className, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
+            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
             methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD, className, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
+            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
             methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, "getThrowable", "()Ljava/lang/Throwable;", false);
             methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/future/TaskFutureImpl", "tryFail", "(Ljava/lang/Throwable;)Z", false);
             methodVisitor.visitInsn(POP);
@@ -428,7 +477,11 @@ public class Transformer {
             methodVisitor.visitEnd();
         }
         taskClassWriter.visitEnd();
-        ret.add(new GenerateClassData(taskClassWriter, className, ClassType.TASK, propertyNameAndDescList));
+        ret.add(new GenerateClassData(taskClassWriter, taskClassName, ClassType.TASK, propertyNameAndDescList));
         return ret;
+    }
+
+    public String getPath() {
+        return path;
     }
 }

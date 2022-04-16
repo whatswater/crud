@@ -18,6 +18,14 @@ import static com.whatswater.async.type.Async.await;
 public class TodoAwaitService implements ITodoAwaitService {
     public TodoSQL todoSQL;
 
+    private static final class Test {
+        private TodoAwaitService todoAwaitService;
+
+        public TodoSQL getTodoSql() {
+            return todoAwaitService.todoSQL;
+        }
+    }
+
     public TodoAwaitService() {
     }
 
@@ -27,13 +35,26 @@ public class TodoAwaitService implements ITodoAwaitService {
         sqlAssist.setStartRow(page.getOffset());
         sqlAssist.setRowSize(page.getLimit());
 
-        Long total = await(todoSQL.getCount(sqlAssist));
-        if (CrudUtils.notZero(total)) {
-            List<JsonObject> jsonList = await(todoSQL.selectAll(sqlAssist));
-            List<Todo> todoList = jsonList.stream().map(Todo::new).collect(Collectors.toList());
-            return async(PageResult.of(todoList, page, total));
+        long[] l1 = new long[2];
+
+        try {
+            l1[0] = 1L;
+            l1[0] = 4L;
+            Long total = await(todoSQL.getCount(sqlAssist));
+            String a = "1";
+            if ("1".equals(a)) {
+                throw new RuntimeException("1111111111111");
+            }
+            if (CrudUtils.notZero(total)) {
+                List<JsonObject> jsonList = await(todoSQL.selectAll(sqlAssist));
+                List<Todo> todoList = jsonList.stream().map(Todo::new).collect(Collectors.toList());
+                return async(PageResult.of(todoList, page, total));
+            }
+
+            return async(PageResult.empty());
+        } catch (Exception e) {
+            return async(PageResult.empty());
         }
-        return async(PageResult.empty());
     }
 
     @Override

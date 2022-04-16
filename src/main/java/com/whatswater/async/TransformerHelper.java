@@ -3,12 +3,10 @@ package com.whatswater.async;
 
 import com.whatswater.async.GenerateClassData.ClassType;
 import com.whatswater.async.frame.TypeInterpreter;
-import com.zandero.utils.Pair;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.*;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 
@@ -145,23 +143,18 @@ public abstract class TransformerHelper {
 
     /**
      * 将本地变量表复制到Task类，并生成setter方法
-     * @param className 方法所在得类
+     * @param className 方法所在的类
      * @param methodNode 方法
      * @param classWriter classWriter
      * @return 本地变量index => name、desc、setter、setter desc
      */
-    public static Map<Integer, String[]> copyLocalVariablesToProperties(String className, MethodNode methodNode, ClassWriter classWriter) {
-        Map<Integer, String[]> propertyNames = new TreeMap<>();
+    public static Map<Integer, List<LocalSetterInfo>> copyLocalVariablesToProperties(String className, MethodNode methodNode, ClassWriter classWriter) {
+        Map<Integer, List<LocalSetterInfo>> propertyNames = new TreeMap<>();
         String classDesc = "L" + className + ";";
 
         List<LocalVariableNode> tmp = new ArrayList<>(methodNode.localVariables.size());
         tmp.addAll(methodNode.localVariables);
-        tmp.sort(new Comparator<LocalVariableNode>() {
-            @Override
-            public int compare(LocalVariableNode n1, LocalVariableNode n2) {
-                return n1.index - n2.index;
-            }
-        });
+        tmp.sort(Comparator.comparingInt(n -> n.index));
 
         for (int i = 0; i < tmp.size(); i++) {
             LocalVariableNode localVariable = tmp.get(i);
@@ -179,8 +172,9 @@ public abstract class TransformerHelper {
 
             String setterName = SETTER_PREFIX + name;
             String setterDesc = "(" + desc + classDesc + ")V";
-            propertyNames.put(localVariable.index, new String[] { name, desc, setterName, setterDesc });
-
+            LocalSetterInfo setterInfo = new LocalSetterInfo(name, desc, setterName, setterDesc);
+            List<LocalSetterInfo> list = propertyNames.computeIfAbsent(localVariable.index, k -> new ArrayList<>());
+            list.add(setterInfo);
             MethodVisitor methodVisitor = classWriter.visitMethod(
                 ACC_PRIVATE | ACC_STATIC,
                 setterName,
@@ -190,7 +184,6 @@ public abstract class TransformerHelper {
             );
 
             Type type = Type.getType(desc);
-
             methodVisitor.visitCode();
             methodVisitor.visitVarInsn(ALOAD, type.getSize());
             methodVisitor.visitVarInsn(type.getOpcode(ILOAD), 0);
@@ -275,11 +268,12 @@ public abstract class TransformerHelper {
         return analyzer.analyze(className, methodNode);
     }
 
-    public static Map<Integer, String[]> generateStackMapHolder(ClassWriter classWriter, String className, Frame<BasicValue> currentFrame) {
+    public static Map<Integer, String[]> generateStackMapHolder(ClassNode classNode, ClassWriter classWriter, String className, Frame<BasicValue> currentFrame) {
         Map<Integer, String[]> propertyNameList = new TreeMap<>();
 
         String classDesc = "L" + className + ";";
         classWriter.visit(V1_8, ACC_PUBLIC | ACC_SUPER, className, null, "java/lang/Object", null);
+        classWriter.visitSource(TransformerHelper.getSimpleNameByClassName(classNode.name) + Transformer.JAVA_FILE_SUFFIX, null);
         {
             MethodVisitor methodVisitor = classWriter.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
             methodVisitor.visitCode();
@@ -337,7 +331,7 @@ public abstract class TransformerHelper {
         return propertyNameList;
     }
 
-    public static MethodNode generateCallTaskMethod(MethodNode methodNode, List<GenerateClassData> classDataList) {
+    public static MethodNode generateCallTaskMethod(ClassNode classNode, MethodNode methodNode, List<GenerateClassData> classDataList) {
         final MethodNode replacement = new MethodNode(
             methodNode.access,
             methodNode.name,
@@ -350,9 +344,9 @@ public abstract class TransformerHelper {
         if (taskClassData == null) {
             return null;
         }
-        String className = taskClassData.getClassName();
+        String taskClassName = taskClassData.getClassName();
 
-        Map<Integer, String[]> propertyNames = taskClassData.getNames();
+        Map<Integer, List<LocalSetterInfo>> propertyNames = taskClassData.getNames();
         Type type = Type.getMethodType(methodNode.desc);
         Type[] argTypes = type.getArgumentTypes();
 
@@ -364,40 +358,50 @@ public abstract class TransformerHelper {
         }
 
         // 创建Task
-        replacement.visitTypeInsn(NEW, className);
+        replacement.visitTypeInsn(NEW, taskClassName);
         replacement.visitInsn(DUP);
-        replacement.visitMethodInsn(INVOKESPECIAL, className, "<init>", "()V", false);
+        replacement.visitMethodInsn(INVOKESPECIAL, taskClassName, "<init>", "()V", false);
         replacement.visitVarInsn(ASTORE, idx);
 
         // 将this赋值到Task
         if (argOffset > 0) {
-            String[] names = propertyNames.get(0);
-            String propertyName = names[0];
-            String propertyDesc = names[1];
+            List<LocalSetterInfo> names = propertyNames.get(0);
+            LocalSetterInfo localSetterInfo = findSetterMethod(names, "L" + classNode.name + ";");
+            if (localSetterInfo == null) {
+                throw new RuntimeException("can't find local variable 'this', type: " + classNode.name + ", method: " + methodNode.desc);
+            }
+
+            String propertyName = localSetterInfo.getName();
+            String propertyDesc = localSetterInfo.getDesc();
             replacement.visitVarInsn(ALOAD, idx);
             replacement.visitVarInsn(ALOAD, 0);
-            replacement.visitFieldInsn(PUTFIELD, className, propertyName, propertyDesc);
+            replacement.visitFieldInsn(PUTFIELD, taskClassName, propertyName, propertyDesc);
         }
         // 将参数赋值给Task
         int index = 0;
         for (int i = 0; i < argTypes.length; i++) {
-            String[] names = propertyNames.get(i + argOffset);
-            String propertyName = names[0];
-            String propertyDesc = names[1];
-
             Type argType = type.getArgumentTypes()[i];
+
+            List<LocalSetterInfo> names = propertyNames.get(i + argOffset);
+            LocalSetterInfo localSetterInfo = findSetterMethod(names, argType.getDescriptor());
+            if (localSetterInfo == null) {
+                throw new RuntimeException("can't find local variable, argType: " + argType.getDescriptor() + " type: " + classNode.name + ", method: " + methodNode.desc);
+            }
+            String propertyName = localSetterInfo.getName();
+            String propertyDesc = localSetterInfo.getDesc();
+
             replacement.visitVarInsn(ALOAD, idx);
             replacement.visitVarInsn(argType.getOpcode(ILOAD), index + argOffset);
-            replacement.visitFieldInsn(PUTFIELD, className, propertyName, propertyDesc);
+            replacement.visitFieldInsn(PUTFIELD, taskClassName, propertyName, propertyDesc);
             index += argType.getSize();
         }
         // 调用moveToNext
         replacement.visitVarInsn(ALOAD, idx);
         replacement.visitInsn(ICONST_0);
-        replacement.visitMethodInsn(INVOKEVIRTUAL, className, "moveToNext", "(I)V", false);
+        replacement.visitMethodInsn(INVOKEVIRTUAL, taskClassName, "moveToNext", "(I)V", false);
         // 获取_future属性
         replacement.visitVarInsn(ALOAD, idx);
-        replacement.visitFieldInsn(GETFIELD, className, "_future", "Lcom/whatswater/async/future/TaskFutureImpl;");
+        replacement.visitFieldInsn(GETFIELD, taskClassName, "_future", "Lcom/whatswater/async/future/TaskFutureImpl;");
 
         String returnClassName = type.getReturnType().getInternalName();
         if (!"com/whatswater/async/future/TaskFutureImpl".equals(returnClassName)) {
@@ -416,5 +420,44 @@ public abstract class TransformerHelper {
             }
         }
         return null;
+    }
+
+    public static String getPackageByClassName(String className) {
+        if (className.lastIndexOf('/') < 0) {
+            return "";
+        }
+        return className.substring(0, className.lastIndexOf('/') + 1);
+    }
+
+    public static String getSimpleNameByClassName(String className) {
+        if (className.lastIndexOf('/') < 0) {
+            return className;
+        }
+        return className.substring(className.lastIndexOf('/') + 1, className.length());
+    }
+
+    public static AbstractInsnNode getPrevInsnNode(InsnList insnList, int i) {
+        while (i - 1 >= 0) {
+            i--;
+            AbstractInsnNode abstractInsnNode = insnList.get(i);
+            if (abstractInsnNode.getOpcode() > 0) {
+                return abstractInsnNode;
+            }
+        }
+        return null;
+    }
+
+    public static LocalSetterInfo findSetterMethod(List<LocalSetterInfo> localSetterInfoList, String needDesc) {
+        for (LocalSetterInfo localSetterInfo: localSetterInfoList) {
+            String desc = localSetterInfo.getDesc();
+            if (desc.equals(needDesc)) {
+                return localSetterInfo;
+            }
+        }
+        return null;
+    }
+
+    public static String classPathDesc(String classPath) {
+        return "L" + classPath + ";";
     }
 }

@@ -13,7 +13,7 @@ import java.util.*;
 import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 
-public class TaskClassGenerator implements MethodInsnVisitor {
+public class TaskClassGenerator {
     public static final String JAVA_FILE_SUFFIX = ".java";
     public static final String SETTER_PREFIX = "set_";
     public static final String LOCAL_VARIABLE_NAME_PREFIX = "local_";
@@ -323,7 +323,6 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         methodVisitor.visitEnd();
     }
 
-    @Override
     public void visitMethodInsnNode(MethodInsnNode methodInsnNode, Frame<BasicValue> frame) {
         if (TransformerHelper.isAwaitCall(methodInsnNode)) {
             if (frame != null) {
@@ -377,7 +376,7 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                 // 保存栈数据
                 String stackClassName = classNode.name +  "$StackHolder" + suffix + labelIndex;
                 ClassWriter stackClassWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-                Map<Integer, String[]> stackHolderNameList = TransformerHelper.generateStackMapHolder(classNode, stackClassWriter, stackClassName, frame);
+                Map<Integer, String[]> stackHolderNameList = Transformer.generateStackMapHolder(classNode, stackClassWriter, stackClassName, frame);
                 generateClassDataList.add(new GenerateClassData(stackClassWriter, stackClassName, ClassType.STACK_HOLDER, null));
 
                 // NEW stack holder对象，存储在stack property上
@@ -447,12 +446,10 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         }
     }
 
-    @Override
     public void visitFieldInsnNode(FieldInsnNode fieldInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitFieldInsn(fieldInsnNode.getOpcode(), fieldInsnNode.owner, fieldInsnNode.name, fieldInsnNode.desc);
     }
 
-    @Override
     public void visitTableSwitchInsnNode(TableSwitchInsnNode tableSwitchInsnNode, Frame<BasicValue> frame) {
         Label[] labels = new Label[tableSwitchInsnNode.labels.size()];
         for (int j = 0; j < tableSwitchInsnNode.labels.size(); j++) {
@@ -461,12 +458,10 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         moveToNextMethodVisitor.visitTableSwitchInsn(tableSwitchInsnNode.min, tableSwitchInsnNode.max, tableSwitchInsnNode.dflt.getLabel(), labels);
     }
 
-    @Override
     public void visitLineNumberNode(LineNumberNode lineNumberNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitLineNumber(lineNumberNode.line, lineNumberNode.start.getLabel());
     }
 
-    @Override
     public void visitIincInsnNode(IincInsnNode iincInsnNode, Frame<BasicValue> frame) {
         int index = iincInsnNode.var;
         List<LocalSetterInfo> localSetterInfoList = propertyNameAndDescList.get(index);
@@ -487,33 +482,27 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         moveToNextMethodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, setterName, setterDesc, false);
     }
 
-    @Override
     public void visitIntInsnNode(IntInsnNode intInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitIntInsn(intInsnNode.getOpcode(), intInsnNode.operand);
     }
 
-    @Override
     public void visitLabelNode(LabelNode labelNode, Frame<BasicValue> frame) {
         System.out.println("labelNode: " + labelNode.getLabel());
         moveToNextMethodVisitor.visitLabel(labelNode.getLabel());
     }
 
-    @Override
     public void visitMultiANewArrayInsnNode(MultiANewArrayInsnNode multiANewArrayInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitMultiANewArrayInsn(multiANewArrayInsnNode.desc, multiANewArrayInsnNode.dims);
     }
 
-    @Override
     public void visitLdcInsnNode(LdcInsnNode ldcInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitLdcInsn(ldcInsnNode.cst);
     }
 
-    @Override
     public void visitTypeInsnNode(TypeInsnNode typeInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitTypeInsn(typeInsnNode.getOpcode(), typeInsnNode.desc);
     }
 
-    @Override
     public void visitVarInsn(VarInsnNode varInsnNode, Frame<BasicValue> frame) {
         int index = varInsnNode.var;
         List<LocalSetterInfo> localSetterInfoList = propertyNameAndDescList.get(index);
@@ -553,7 +542,6 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         }
     }
 
-    @Override
     public void visitInvokeDynamicInsnNode(InvokeDynamicInsnNode invokeDynamicInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitInvokeDynamicInsn(
             invokeDynamicInsnNode.name,
@@ -563,17 +551,14 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         );
     }
 
-    @Override
     public void visitFrameNode(FrameNode frameNode, Frame<BasicValue> frame) {
 
     }
 
-    @Override
     public void visitJumpInsnNode(JumpInsnNode jumpInsnNode, Frame<BasicValue> frame) {
         moveToNextMethodVisitor.visitJumpInsn(jumpInsnNode.getOpcode(), jumpInsnNode.label.getLabel());
     }
 
-    @Override
     public void visitInsnNode(InsnNode insnNode, Frame<BasicValue> frame) {
         switch (insnNode.getOpcode()) {
             case IRETURN:
@@ -642,7 +627,6 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         }
     }
 
-    @Override
     public void visitLookupSwitchInsnNode(LookupSwitchInsnNode lookupSwitchInsnNode, Frame<BasicValue> frame) {
         int[] keys = new int[lookupSwitchInsnNode.keys.size()];
         for (int j = 0; j < lookupSwitchInsnNode.keys.size(); j++) {

@@ -49,9 +49,10 @@ public class TaskClassGenerator implements MethodInsnVisitor {
     private final Frame<BasicValue>[] frames;
     private final ClassWriter taskClassWriter;
 
-    private MethodVisitor methodVisitor;
+    private MethodVisitor moveToNextMethodVisitor;
     private Map<Integer, List<LocalSetterInfo>> propertyNameAndDescList;
     private Label[] switchLabels;
+    private Label defaultLabel;
     private int maxStackSize = 0;
     private int labelIndex = 0;
     private int insnIndex = 0;
@@ -79,23 +80,34 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         addCompleteMethod();
         addEmptyConstructor();
 
-        methodVisitor = taskClassWriter.visitMethod(ACC_PUBLIC, METHOD_NAME_MOVE_TO_NEXT, METHOD_DESC_MOVE_TO_NEXT, null, null);
-        methodVisitor.visitCode();
+        moveToNextMethodVisitor = taskClassWriter.visitMethod(ACC_PUBLIC, METHOD_NAME_MOVE_TO_NEXT, METHOD_DESC_MOVE_TO_NEXT, null, null);
+        moveToNextMethodVisitor.visitCode();
 
-        copyTryCatchNode();
-        addOuterTryCatchNode();
+//        Label start = new Label();
+//        moveToNextMethodVisitor.visitLabel(start);
+
+//        copyTryCatchNode();
         createStateSwitch();
         transformInsn();
-        visitDefault();
+
+        moveToNextMethodVisitor.visitLabel(defaultLabel);
+        moveToNextMethodVisitor.visitTypeInsn(NEW, "java/lang/RuntimeException");
+        moveToNextMethodVisitor.visitInsn(DUP);
+        moveToNextMethodVisitor.visitMethodInsn(INVOKESPECIAL, "java/lang/RuntimeException", "<init>", "()V", false);
+        moveToNextMethodVisitor.visitInsn(ATHROW);
+
+//        Label end = new Label();
+//        moveToNextMethodVisitor.visitLabel(end);
+//        addOuterTryCatchNode(start, end);
 
         // 转换过程中未引入任何本地变量
-        methodVisitor.visitMaxs(maxStackSize, 2);
-        methodVisitor.visitEnd();
+        moveToNextMethodVisitor.visitMaxs(maxStackSize, 2);
+        moveToNextMethodVisitor.visitEnd();
     }
 
     public void copyTryCatchNode() {
         for (TryCatchBlockNode tryCatchBlockNode: methodNode.tryCatchBlocks) {
-            methodVisitor.visitTryCatchBlock(
+            moveToNextMethodVisitor.visitTryCatchBlock(
                 tryCatchBlockNode.start.getLabel(),
                 tryCatchBlockNode.end.getLabel(),
                 tryCatchBlockNode.handler.getLabel(),
@@ -104,26 +116,41 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         }
     }
 
-    public void addOuterTryCatchNode() {
+    public void addOuterTryCatchNode(Label start, Label end) {
+        Label handler = new Label();
 
+        moveToNextMethodVisitor.visitLabel(handler);
+        moveToNextMethodVisitor.visitVarInsn(ASTORE, 2);
+        moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+        moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
+        moveToNextMethodVisitor.visitVarInsn(ALOAD, 2);
+        moveToNextMethodVisitor.visitMethodInsn(INVOKEVIRTUAL, FUTURE_IMPL_CLASS_PATH, "tryFail", "(Ljava/lang/Throwable;)Z", false);
+        moveToNextMethodVisitor.visitInsn(POP);
+        moveToNextMethodVisitor.visitInsn(RETURN);
+        moveToNextMethodVisitor.visitTryCatchBlock(start, end, handler, "java/lang/Throwable");
     }
 
     public void createStateSwitch() {
         int awaitCount = TransformerHelper.awaitInvokeCount(methodNode);
 
         Label defaultLabel = new Label();
+        System.out.println("default: " + defaultLabel);
         Label[] switchLabels = new Label[awaitCount + 1];
         for (int i = 0; i < awaitCount + 1; i++) {
             switchLabels[i] = new Label();
+            System.out.println(i + ": " + switchLabels[i]);
         }
-        methodVisitor.visitVarInsn(ILOAD, 1);
-        methodVisitor.visitTableSwitchInsn(0, awaitCount, defaultLabel, switchLabels);
-        methodVisitor.visitLabel(switchLabels[labelIndex]);
+        moveToNextMethodVisitor.visitVarInsn(ILOAD, 1);
+        moveToNextMethodVisitor.visitTableSwitchInsn(0, awaitCount, defaultLabel, switchLabels);
+
 
         this.switchLabels = switchLabels;
+        this.defaultLabel = defaultLabel;
     }
 
     public void transformInsn() {
+        // case 0;
+        moveToNextMethodVisitor.visitLabel(switchLabels[labelIndex]);
         for (int i = 0; i < methodNode.instructions.size(); i++) {
             AbstractInsnNode abstractInsnNode = methodNode.instructions.get(i);
             insnIndex = i;
@@ -161,23 +188,6 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                 this.visitInsnNode((InsnNode) abstractInsnNode, frames[i]);
             }
         }
-    }
-
-    public void visitDefault() {
-//        // default label至少需要两个栈空间
-//        if (maxStackSize < 2) {
-//            maxStackSize = 2;
-//        }
-//        // default label
-//        methodVisitor.visitLabel(defaultLabel);
-//        methodVisitor.visitVarInsn(ALOAD, 0);
-//        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
-//        methodVisitor.visitVarInsn(ALOAD, 0);
-//        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
-//        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_PATH, "getThrowable", "()Ljava/lang/Throwable;", false);
-//        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, FUTURE_IMPL_CLASS_PATH, "tryFail", "(Ljava/lang/Throwable;)Z", false);
-//        methodVisitor.visitInsn(POP);
-//        methodVisitor.visitInsn(RETURN);
     }
 
     /**
@@ -323,59 +333,61 @@ public class TaskClassGenerator implements MethodInsnVisitor {
 
             // 原先的栈顶，为一个Future对象
             // 创建AwaitTaskHandler对象，并传入this和labelIndex，将新创建的AwaitTaskHandler设置为handlerPropertyName属性
-            methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitTypeInsn(NEW, "com/whatswater/async/handler/AwaitTaskHandler");
-            methodVisitor.visitInsn(DUP);
-            methodVisitor.visitVarInsn(ALOAD, 0);
+            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+            moveToNextMethodVisitor.visitTypeInsn(NEW, "com/whatswater/async/handler/AwaitTaskHandler");
+            moveToNextMethodVisitor.visitInsn(DUP);
+            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
             labelIndex = labelIndex + 1;
             switch (labelIndex) {
                 case 1:
-                    methodVisitor.visitInsn(ICONST_1);
+                    moveToNextMethodVisitor.visitInsn(ICONST_1);
                     break;
                 case 2:
-                    methodVisitor.visitInsn(ICONST_2);
+                    moveToNextMethodVisitor.visitInsn(ICONST_2);
                     break;
                 case 3:
-                    methodVisitor.visitInsn(ICONST_3);
+                    moveToNextMethodVisitor.visitInsn(ICONST_3);
                     break;
                 case 4:
-                    methodVisitor.visitInsn(ICONST_4);
+                    moveToNextMethodVisitor.visitInsn(ICONST_4);
                     break;
                 case 5:
-                    methodVisitor.visitInsn(ICONST_5);
+                    moveToNextMethodVisitor.visitInsn(ICONST_5);
                     break;
                 default:
                     if (labelIndex <= Byte.MAX_VALUE) {
-                        methodVisitor.visitIntInsn(BIPUSH, labelIndex);
+                        moveToNextMethodVisitor.visitIntInsn(BIPUSH, labelIndex);
                     } else if (labelIndex <= Short.MAX_VALUE) {
-                        methodVisitor.visitIntInsn(SIPUSH, labelIndex);
+                        moveToNextMethodVisitor.visitIntInsn(SIPUSH, labelIndex);
                     } else {
-                        methodVisitor.visitLdcInsn(labelIndex);
+                        moveToNextMethodVisitor.visitLdcInsn(labelIndex);
                     }
             }
-            methodVisitor.visitMethodInsn(INVOKESPECIAL, HANDLER_CLASS_PATH, "<init>", "(Lcom/whatswater/async/Task;I)V", false);
-            methodVisitor.visitFieldInsn(PUTFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
+            moveToNextMethodVisitor.visitMethodInsn(INVOKESPECIAL, HANDLER_CLASS_PATH, "<init>", "(Lcom/whatswater/async/Task;I)V", false);
+            moveToNextMethodVisitor.visitFieldInsn(PUTFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
 
-            methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD,  taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
+            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+            moveToNextMethodVisitor.visitFieldInsn(GETFIELD,  taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
             // 栈顶的对象在此使用，调用onComplete后，栈顶存在一个新的Future对象
-            methodVisitor.visitMethodInsn(INVOKEINTERFACE, FUTURE_INTERFACE_NAME, "onComplete", "(Lio/vertx/core/Handler;)Lio/vertx/core/Future;", true);
+            moveToNextMethodVisitor.visitMethodInsn(INVOKEINTERFACE, FUTURE_INTERFACE_NAME, "onComplete", "(Lio/vertx/core/Handler;)Lio/vertx/core/Future;", true);
             // 丢失掉新的Future对象
-            methodVisitor.visitInsn(POP);
+            moveToNextMethodVisitor.visitInsn(POP);
 
             if (frame != null && frame.getStackSize() > 1) {
+                // 保存栈数据
                 String stackClassName = classNode.name +  "$StackHolder" + suffix + labelIndex;
                 ClassWriter stackClassWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
                 Map<Integer, String[]> stackHolderNameList = TransformerHelper.generateStackMapHolder(classNode, stackClassWriter, stackClassName, frame);
                 generateClassDataList.add(new GenerateClassData(stackClassWriter, stackClassName, ClassType.STACK_HOLDER, null));
 
-                methodVisitor.visitVarInsn(ALOAD, 0);
-                methodVisitor.visitTypeInsn(NEW, stackClassName);
-                methodVisitor.visitInsn(DUP);
-                methodVisitor.visitMethodInsn(INVOKESPECIAL, stackClassName, "<init>", "()V", false);
-                methodVisitor.visitFieldInsn(PUTFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
+                // NEW stack holder对象，存储在stack property上
+                moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                moveToNextMethodVisitor.visitTypeInsn(NEW, stackClassName);
+                moveToNextMethodVisitor.visitInsn(DUP);
+                moveToNextMethodVisitor.visitMethodInsn(INVOKESPECIAL, stackClassName, "<init>", "()V", false);
+                moveToNextMethodVisitor.visitFieldInsn(PUTFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
 
-                // 保存栈数据
+                // 设置stack属性
                 for (int index = frame.getStackSize() - 2; index >= 0; index--) {
                     String[] names = stackHolderNameList.get(index);
                     if (names == null) {
@@ -384,15 +396,16 @@ public class TaskClassGenerator implements MethodInsnVisitor {
 
                     String setterName = names[2];
                     String setterDesc = names[3];
-                    methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
-                    methodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
-                    methodVisitor.visitMethodInsn(INVOKESTATIC, stackClassName, setterName, setterDesc, false);
+                    moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                    moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
+                    moveToNextMethodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
+                    moveToNextMethodVisitor.visitMethodInsn(INVOKESTATIC, stackClassName, setterName, setterDesc, false);
                 }
-                methodVisitor.visitInsn(RETURN);
-                methodVisitor.visitLabel(switchLabels[labelIndex]);
+                // moveToNext返回
+                moveToNextMethodVisitor.visitInsn(RETURN);
 
                 // 恢复栈数据
+                moveToNextMethodVisitor.visitLabel(switchLabels[labelIndex]);
                 for (int index = 0; index < frame.getStackSize() - 1; index++) {
                     String[] names = stackHolderNameList.get(index);
                     if (names == null) {
@@ -401,29 +414,42 @@ public class TaskClassGenerator implements MethodInsnVisitor {
 
                     String propertyName = names[0];
                     String propertyDesc = names[1];
-                    methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
-                    methodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
-                    methodVisitor.visitFieldInsn(GETFIELD, stackClassName, propertyName, propertyDesc);
+                    moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                    moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, STACK_HOLDER_PROPERTY_NAME, OBJECT_CLASS_DESC);
+                    moveToNextMethodVisitor.visitTypeInsn(CHECKCAST, stackClassName);
+                    moveToNextMethodVisitor.visitFieldInsn(GETFIELD, stackClassName, propertyName, propertyDesc);
                 }
             } else {
-                methodVisitor.visitInsn(RETURN);
-                methodVisitor.visitLabel(switchLabels[labelIndex]);
+                moveToNextMethodVisitor.visitInsn(RETURN);
+                moveToNextMethodVisitor.visitLabel(switchLabels[labelIndex]);
             }
+
+//            Label elseLabel = new Label();
+//            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+//            moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
+//            moveToNextMethodVisitor.visitMethodInsn(INVOKEINTERFACE, "io/vertx/core/AsyncResult", "succeeded", "()Z", true);
+//            moveToNextMethodVisitor.visitJumpInsn(IFEQ, elseLabel);
+
             // 获取异步任务的执行结果
-            methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
-            methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_PATH, "getResult", "()Ljava/lang/Object;", false);
+            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+            moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
+            moveToNextMethodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_PATH, "getResult", "()Ljava/lang/Object;", false);
+
+//            moveToNextMethodVisitor.visitLabel(elseLabel);
+//            moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+//            moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, HANDLER_PROPERTY_NAME, HANDLER_CLASS_DESC);
+//            moveToNextMethodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_PATH, "getThrowable", "()Ljava/lang/Throwable;", false);
+//            moveToNextMethodVisitor.visitInsn(ATHROW);
         } else if (TransformerHelper.isAsyncCall(methodInsnNode)) {
-            methodVisitor.visitInsn(NOP);
+            moveToNextMethodVisitor.visitInsn(NOP);
         } else {
-            methodVisitor.visitMethodInsn(methodInsnNode.getOpcode(), methodInsnNode.owner, methodInsnNode.name, methodInsnNode.desc, methodInsnNode.itf);
+            moveToNextMethodVisitor.visitMethodInsn(methodInsnNode.getOpcode(), methodInsnNode.owner, methodInsnNode.name, methodInsnNode.desc, methodInsnNode.itf);
         }
     }
 
     @Override
     public void visitFieldInsnNode(FieldInsnNode fieldInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitFieldInsn(fieldInsnNode.getOpcode(), fieldInsnNode.owner, fieldInsnNode.name, fieldInsnNode.desc);
+        moveToNextMethodVisitor.visitFieldInsn(fieldInsnNode.getOpcode(), fieldInsnNode.owner, fieldInsnNode.name, fieldInsnNode.desc);
     }
 
     @Override
@@ -432,12 +458,12 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         for (int j = 0; j < tableSwitchInsnNode.labels.size(); j++) {
             labels[j] = tableSwitchInsnNode.labels.get(j).getLabel();
         }
-        methodVisitor.visitTableSwitchInsn(tableSwitchInsnNode.min, tableSwitchInsnNode.max, tableSwitchInsnNode.dflt.getLabel(), labels);
+        moveToNextMethodVisitor.visitTableSwitchInsn(tableSwitchInsnNode.min, tableSwitchInsnNode.max, tableSwitchInsnNode.dflt.getLabel(), labels);
     }
 
     @Override
     public void visitLineNumberNode(LineNumberNode lineNumberNode, Frame<BasicValue> frame) {
-        methodVisitor.visitLineNumber(lineNumberNode.line, lineNumberNode.start.getLabel());
+        moveToNextMethodVisitor.visitLineNumber(lineNumberNode.line, lineNumberNode.start.getLabel());
     }
 
     @Override
@@ -453,37 +479,38 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         String setterName = localSetterInfo.getSetterName();
         String setterDesc = localSetterInfo.getSetterDesc();
 
-        methodVisitor.visitVarInsn(ALOAD, 0);
-        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, propertyName, propertyDesc);
-        methodVisitor.visitVarInsn(ILOAD, iincInsnNode.incr);
-        methodVisitor.visitInsn(IADD);
-        methodVisitor.visitVarInsn(ALOAD, 0);
-        methodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, setterName, setterDesc, false);
+        moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+        moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, propertyName, propertyDesc);
+        moveToNextMethodVisitor.visitVarInsn(ILOAD, iincInsnNode.incr);
+        moveToNextMethodVisitor.visitInsn(IADD);
+        moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+        moveToNextMethodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, setterName, setterDesc, false);
     }
 
     @Override
     public void visitIntInsnNode(IntInsnNode intInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitIntInsn(intInsnNode.getOpcode(), intInsnNode.operand);
+        moveToNextMethodVisitor.visitIntInsn(intInsnNode.getOpcode(), intInsnNode.operand);
     }
 
     @Override
     public void visitLabelNode(LabelNode labelNode, Frame<BasicValue> frame) {
-        methodVisitor.visitLabel(labelNode.getLabel());
+        System.out.println("labelNode: " + labelNode.getLabel());
+        moveToNextMethodVisitor.visitLabel(labelNode.getLabel());
     }
 
     @Override
     public void visitMultiANewArrayInsnNode(MultiANewArrayInsnNode multiANewArrayInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitMultiANewArrayInsn(multiANewArrayInsnNode.desc, multiANewArrayInsnNode.dims);
+        moveToNextMethodVisitor.visitMultiANewArrayInsn(multiANewArrayInsnNode.desc, multiANewArrayInsnNode.dims);
     }
 
     @Override
     public void visitLdcInsnNode(LdcInsnNode ldcInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitLdcInsn(ldcInsnNode.cst);
+        moveToNextMethodVisitor.visitLdcInsn(ldcInsnNode.cst);
     }
 
     @Override
     public void visitTypeInsnNode(TypeInsnNode typeInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitTypeInsn(typeInsnNode.getOpcode(), typeInsnNode.desc);
+        moveToNextMethodVisitor.visitTypeInsn(typeInsnNode.getOpcode(), typeInsnNode.desc);
     }
 
     @Override
@@ -502,8 +529,8 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                 if (localSetterInfo == null) {
                     throw new RuntimeException("load exception");
                 }
-                methodVisitor.visitVarInsn(ALOAD, 0);
-                methodVisitor.visitFieldInsn(GETFIELD, taskClassName, localSetterInfo.getName(), localSetterInfo.getDesc());
+                moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, localSetterInfo.getName(), localSetterInfo.getDesc());
                 break;
             }
             case ISTORE:
@@ -517,8 +544,8 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                     throw new RuntimeException("store exception");
                 }
 
-                methodVisitor.visitVarInsn(ALOAD, 0);
-                methodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, localSetterInfo.getSetterName(), localSetterInfo.getSetterDesc(), false);
+                moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                moveToNextMethodVisitor.visitMethodInsn(INVOKESTATIC, taskClassName, localSetterInfo.getSetterName(), localSetterInfo.getSetterDesc(), false);
                 break;
             }
             case RET:
@@ -528,7 +555,7 @@ public class TaskClassGenerator implements MethodInsnVisitor {
 
     @Override
     public void visitInvokeDynamicInsnNode(InvokeDynamicInsnNode invokeDynamicInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitInvokeDynamicInsn(
+        moveToNextMethodVisitor.visitInvokeDynamicInsn(
             invokeDynamicInsnNode.name,
             invokeDynamicInsnNode.desc,
             invokeDynamicInsnNode.bsm,
@@ -543,7 +570,7 @@ public class TaskClassGenerator implements MethodInsnVisitor {
 
     @Override
     public void visitJumpInsnNode(JumpInsnNode jumpInsnNode, Frame<BasicValue> frame) {
-        methodVisitor.visitJumpInsn(jumpInsnNode.getOpcode(), jumpInsnNode.label.getLabel());
+        moveToNextMethodVisitor.visitJumpInsn(jumpInsnNode.getOpcode(), jumpInsnNode.label.getLabel());
     }
 
     @Override
@@ -574,10 +601,10 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                         maxStackSize = Math.max(maxStackSize, newMax);
                     }
 
-                    methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
-                    methodVisitor.visitInsn(ACONST_NULL);
-                    methodVisitor.visitMethodInsn(
+                    moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                    moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
+                    moveToNextMethodVisitor.visitInsn(ACONST_NULL);
+                    moveToNextMethodVisitor.visitMethodInsn(
                         INVOKEVIRTUAL,
                         FUTURE_IMPL_CLASS_PATH,
                         "tryComplete",
@@ -586,32 +613,32 @@ public class TaskClassGenerator implements MethodInsnVisitor {
                     );
                     if (frame != null) {
                         for (int j = 0; j < frame.getStackSize(); j++) {
-                            methodVisitor.visitInsn(NOP);
+                            moveToNextMethodVisitor.visitInsn(NOP);
                         }
                     }
-                    methodVisitor.visitInsn(RETURN);
+                    moveToNextMethodVisitor.visitInsn(RETURN);
                 } else {
                     if (frame != null) {
                         int stackSize = frame.getStackSize();
                         int newMax = Math.max(stackSize + 1, frame.getMaxStackSize());
                         maxStackSize = Math.max(maxStackSize, newMax);
                     }
-                    methodVisitor.visitVarInsn(ALOAD, 0);
-                    methodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
-                    methodVisitor.visitMethodInsn(
+                    moveToNextMethodVisitor.visitVarInsn(ALOAD, 0);
+                    moveToNextMethodVisitor.visitFieldInsn(GETFIELD, taskClassName, FUTURE_PROPERTY_NAME, FUTURE_IMPL_CLASS_DESC);
+                    moveToNextMethodVisitor.visitMethodInsn(
                         INVOKESTATIC,
                         taskClassName,
                         COMPLETE_METHOD_NAME,
                         COMPLETE_METHOD_DESC,
                         false
                     );
-                    methodVisitor.visitInsn(RETURN);
+                    moveToNextMethodVisitor.visitInsn(RETURN);
                 }
                 break;
             }
             default:
                 // LASTORE等操作数组的指令，不需要特殊处理
-                methodVisitor.visitInsn(insnNode.getOpcode());
+                moveToNextMethodVisitor.visitInsn(insnNode.getOpcode());
         }
     }
 
@@ -625,7 +652,7 @@ public class TaskClassGenerator implements MethodInsnVisitor {
         for (int j = 0; j < lookupSwitchInsnNode.labels.size(); j++) {
             labels[j] = lookupSwitchInsnNode.labels.get(j).getLabel();
         }
-        methodVisitor.visitLookupSwitchInsn(
+        moveToNextMethodVisitor.visitLookupSwitchInsn(
             lookupSwitchInsnNode.dflt.getLabel(),
             keys,
             labels

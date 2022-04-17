@@ -18,7 +18,11 @@ public class AwaitTaskHandler<T> implements Handler<AsyncResult<T>> {
     @Override
     public void handle(AsyncResult<T> result) {
         this.result = result;
-        this.task.moveToNext(result.succeeded() ? this.position : Task.EXCEPTION_STATE);
+        this.task.moveToNext(this.position);
+    }
+
+    public boolean succeeded() {
+        return this.result.succeeded();
     }
 
     public T getResult() {

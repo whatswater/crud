@@ -16,8 +16,8 @@ import java.util.Map;
 import static org.objectweb.asm.Opcodes.*;
 
 // TODO
-// 1、处理异步任务的异常无法catch问题
-// 2、处理内部权限问题
+// 1、处理内部类权限问题
+// 2、优化代码
 // 3、开发maven插件
 public class Transformer {
     public static final String TASK_CLASS_NAME = "Task";
@@ -58,10 +58,11 @@ public class Transformer {
         for (MethodNode methodNode: classNode.methods) {
             if (TransformerHelper.isAsyncMethod(methodNode)) {
                 String suffix = TransformerHelper.nextClassSuffix();
-                TaskClassGenerator taskClassGenerator = new TaskClassGenerator(classNode, methodNode, suffix);
-                taskClassGenerator.generate();
-                List<GenerateClassData> classDataList = taskClassGenerator.getGenerateClassDataList();
+//                TaskClassGenerator taskClassGenerator = new TaskClassGenerator(classNode, methodNode, suffix);
+//                taskClassGenerator.generate();
+//                List<GenerateClassData> classDataList = taskClassGenerator.getGenerateClassDataList();
 
+                List<GenerateClassData> classDataList = generateClass(suffix, methodNode);
                 MethodNode replacement = TransformerHelper.generateCallTaskMethod(classNode, methodNode, classDataList);
                 if (replacement == null) {
                     continue;
@@ -147,7 +148,12 @@ public class Transformer {
                 );
             }
 
-            TryCatchBlockNodeStack tryCacheStack = new TryCatchBlockNodeStack(methodNode.tryCatchBlocks);
+            Label startLabel = new Label();
+            Label endLabel = new Label();
+            Label handlerLabel = new Label();
+            methodVisitor.visitTryCatchBlock(startLabel, endLabel, handlerLabel, "java/lang/Throwable");
+
+            methodVisitor.visitLabel(startLabel);
             Label defaultLabel = new Label();
             Label[] switchLabels = new Label[awaitCount + 1];
             for (int i = 0; i < awaitCount + 1; i++) {
@@ -260,10 +266,29 @@ public class Transformer {
                             methodVisitor.visitInsn(RETURN);
                             methodVisitor.visitLabel(switchLabels[labelIndex]);
                         }
-                        // 获取异步任务的执行结果
+
+                        // 判断执行结果是否成功
+                        Label toLabel = new Label();
+                        Label elseLabel = new Label();
+                        methodVisitor.visitVarInsn(ALOAD, 0);
+                        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
+                        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/handler/AwaitTaskHandler", "succeeded", "()Z", false);
+                        methodVisitor.visitJumpInsn(IFEQ, elseLabel);
+
+                        // 成功后执行
                         methodVisitor.visitVarInsn(ALOAD, 0);
                         methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
                         methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/handler/AwaitTaskHandler", "getResult", "()Ljava/lang/Object;", false);
+                        methodVisitor.visitJumpInsn(GOTO, toLabel);
+
+                        // 失败后执行
+                        methodVisitor.visitLabel(elseLabel);
+                        methodVisitor.visitVarInsn(ALOAD, 0);
+                        methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
+                        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/handler/AwaitTaskHandler", "getThrowable", "()Ljava/lang/Throwable;", false);
+                        methodVisitor.visitInsn(ATHROW);
+
+                        methodVisitor.visitLabel(toLabel);
                     } else if (TransformerHelper.isAsyncCall(methodInsnNode)) {
                         methodVisitor.visitInsn(NOP);
                     } else {
@@ -307,7 +332,6 @@ public class Transformer {
                 } else if (abstractInsnNode instanceof LabelNode) {
                     LabelNode labelNode = (LabelNode) abstractInsnNode;
                     methodVisitor.visitLabel(labelNode.getLabel());
-                    tryCacheStack.consumerLabelNode(labelNode);
                 } else if (abstractInsnNode instanceof MultiANewArrayInsnNode) {
                     MultiANewArrayInsnNode multiANewArrayInsnNode = (MultiANewArrayInsnNode) abstractInsnNode;
                     methodVisitor.visitMultiANewArrayInsn(multiANewArrayInsnNode.desc, multiANewArrayInsnNode.dims);
@@ -457,23 +481,26 @@ public class Transformer {
                 }
             }
 
-            // default label至少需要两个栈空间
-            if (maxStackSize < 2) {
-                maxStackSize = 2;
-            }
-            // default label
+            // default label，抛出异常
             methodVisitor.visitLabel(defaultLabel);
+            methodVisitor.visitTypeInsn(NEW, "java/lang/RuntimeException");
+            methodVisitor.visitInsn(DUP);
+            methodVisitor.visitMethodInsn(INVOKESPECIAL, "java/lang/RuntimeException", "<init>", "()V", false);
+            methodVisitor.visitInsn(ATHROW);
+
+            // 通用错误处理代码
+            methodVisitor.visitLabel(endLabel);
+            methodVisitor.visitLabel(handlerLabel);
+            methodVisitor.visitVarInsn(ASTORE, 2);
             methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, futurePropertyName, "Lcom/whatswater/async/future/TaskFutureImpl;");
-            methodVisitor.visitVarInsn(ALOAD, 0);
-            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, "Lcom/whatswater/async/handler/AwaitTaskHandler;");
-            methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, "getThrowable", "()Ljava/lang/Throwable;", false);
+            methodVisitor.visitFieldInsn(GETFIELD, taskClassName, "_future", "Lcom/whatswater/async/future/TaskFutureImpl;");
+            methodVisitor.visitVarInsn(ALOAD, 2);
             methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "com/whatswater/async/future/TaskFutureImpl", "tryFail", "(Ljava/lang/Throwable;)Z", false);
             methodVisitor.visitInsn(POP);
             methodVisitor.visitInsn(RETURN);
 
             // 转换过程中未引入任何本地变量
-            methodVisitor.visitMaxs(maxStackSize, 2);
+            methodVisitor.visitMaxs(maxStackSize, 3);
             methodVisitor.visitEnd();
         }
         taskClassWriter.visitEnd();

@@ -4,6 +4,9 @@ package com.whatswater.async;
 import org.objectweb.asm.Type;
 
 public class LocalSetterInfo {
+    private int startIndex;
+    private int endIndex;
+
     private String name;
     private String desc;
 
@@ -51,5 +54,21 @@ public class LocalSetterInfo {
 
     public void setSetterDesc(String setterDesc) {
         this.setterDesc = setterDesc;
+    }
+
+    public int getStartIndex() {
+        return startIndex;
+    }
+
+    public void setStartIndex(int startIndex) {
+        this.startIndex = startIndex;
+    }
+
+    public int getEndIndex() {
+        return endIndex;
+    }
+
+    public void setEndIndex(int endIndex) {
+        this.endIndex = endIndex;
     }
 }

@@ -2,6 +2,7 @@ package com.whatswater.curd.project.module.todo;
 
 
 import cn.hutool.core.collection.CollectionUtil;
+import com.whatswater.async.type.NoTransformAwait;
 import com.whatswater.curd.project.common.CrudUtils;
 import com.whatswater.curd.project.common.Page;
 import com.whatswater.curd.project.common.PageResult;
@@ -16,7 +17,7 @@ import static com.whatswater.async.type.Async.async;
 import static com.whatswater.async.type.Async.await;
 
 public class TodoAwaitService implements ITodoAwaitService {
-    public TodoSQL todoSQL;
+    private TodoSQL todoSQL;
 
     private static final class Test {
         private TodoAwaitService todoAwaitService;
@@ -29,13 +30,23 @@ public class TodoAwaitService implements ITodoAwaitService {
     public TodoAwaitService() {
     }
 
-    @Override
-    public Future<PageResult<Todo>> search(final Page page, TodoQuery query) {
+    private static SqlAssist getSqlAssist(final Page page, TodoQuery query) {
         SqlAssist sqlAssist = query.toSqlAssist();
         sqlAssist.setStartRow(page.getOffset());
         sqlAssist.setRowSize(page.getLimit());
+        return sqlAssist;
+    }
 
+    private Future<Long> total(SqlAssist sqlAssist) {
+        return async(await(todoSQL.getCount(sqlAssist)));
+    }
+
+    @Override
+    @NoTransformAwait
+    public Future<PageResult<Todo>> search(final Page page, TodoQuery query) {
+        SqlAssist sqlAssist = getSqlAssist(page, query);
         Long total = await(todoSQL.getCount(sqlAssist));
+
         if (CrudUtils.notZero(total)) {
             List<JsonObject> jsonList = await(todoSQL.selectAll(sqlAssist));
             List<Todo> todoList = jsonList.stream().map(Todo::new).collect(Collectors.toList());

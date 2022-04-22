@@ -68,8 +68,6 @@ public class TodoQuery {
 
     public SqlAssist toSqlAssist() {
         SqlAssist sqlAssist = new SqlAssist();
-        sqlAssist.andLike(Todo.COLUMN_TITLE + 1, this.getTitle());
-
         if (StringUtils.isNotEmpty(this.getTitle())) {
             sqlAssist.andLike(Todo.COLUMN_TITLE, this.getTitle());
         }

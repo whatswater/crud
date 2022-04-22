@@ -10,6 +10,7 @@ import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -159,17 +160,79 @@ public abstract class TransformerHelper {
         return null;
     }
 
-    public static LocalSetterInfo findSetterMethod(List<LocalSetterInfo> localSetterInfoList, String needDesc) {
+    public static LocalSetterInfo findSetterMethod(Map<Integer, List<LocalSetterInfo>> localSetterMap, int idx, int insnOffset) {
+        List<LocalSetterInfo> localSetterInfoList = localSetterMap.get(idx);
+        if (localSetterInfoList == null) {
+            return null;
+        }
         for (LocalSetterInfo localSetterInfo: localSetterInfoList) {
-            String desc = localSetterInfo.getDesc();
-            if (desc.equals(needDesc)) {
+            int startIndex = localSetterInfo.getStartIndex();
+            int endIndex = localSetterInfo.getEndIndex();
+
+            if (insnOffset > startIndex && insnOffset < endIndex) {
                 return localSetterInfo;
             }
         }
         return null;
     }
 
+    public static LocalSetterInfo findFirstSetterMethod(Map<Integer, List<LocalSetterInfo>> localSetterMap, int idx) {
+        List<LocalSetterInfo> localSetterInfoList = localSetterMap.get(idx);
+        if (localSetterInfoList == null || localSetterInfoList.isEmpty()) {
+            return null;
+        }
+        return localSetterInfoList.get(0);
+    }
+
     public static String classPathDesc(String classPath) {
         return "L" + classPath + ";";
+    }
+
+    public static FieldNode findFieldNode(String name, ClassNode classNode) {
+        List<FieldNode> fieldNodes = classNode.fields;
+        for (FieldNode fieldNode: fieldNodes) {
+            if (fieldNode.name.equals(name)) {
+                return fieldNode;
+            }
+        }
+        return null;
+    }
+
+    public static MethodNode findMethodNode(String name, String desc, ClassNode classNode) {
+        List<MethodNode> methodNodes = classNode.methods;
+        for (MethodNode methodNode: methodNodes) {
+            if (methodNode.name.equals(name) && methodNode.desc.equals(desc)) {
+                return methodNode;
+            }
+        }
+        return null;
+    }
+
+    public static boolean isSynchronizedMethod(MethodNode methodNode) {
+        return Modifier.isSynchronized(methodNode.access);
+    }
+
+    public static boolean needTransformAwait(MethodNode methodNode) {
+        if (isSynchronizedMethod(methodNode)) {
+            return false;
+        }
+
+        for (AbstractInsnNode abstractInsnNode: methodNode.instructions) {
+            // 判断方法的同步块内是否存在await调用
+            // 暂时只判断是否存在syn块，不看块里面有没有
+            if (abstractInsnNode.getOpcode() == Opcodes.MONITORENTER) {
+                return false;
+            }
+        }
+        List<AnnotationNode> annotationNodeList = methodNode.visibleAnnotations;
+        if (annotationNodeList != null) {
+            for (AnnotationNode annotationNode: annotationNodeList) {
+                Type annotationType = Type.getType(annotationNode.desc);
+                if (annotationType.getClassName().equals("com.whatswater.async.type.NoTransformAwait")) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

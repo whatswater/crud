@@ -42,6 +42,7 @@ public class TodoModule implements Module {
             e.printStackTrace();
             todoAwaitService = new TodoAwaitService();
         }
+//        todoAwaitService = new TodoAwaitService();
     }
 
     @Override

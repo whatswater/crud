@@ -70,8 +70,8 @@ public class MethodInsnTransformer {
                     methodVisitor.visitMethodInsn(
                         INVOKEVIRTUAL,
                         FUTURE_CLASS_NAME,
-                        "tryComplete",
-                        "(Ljava/lang/Object;)Z",
+                        FUTURE_CLASS_TRY_COMPLETE_METHOD_NAME,
+                        FUTURE_CLASS_TRY_COMPLETE_METHOD_DESC,
                         false
                     );
                     if (currentFrame != null) {
@@ -213,7 +213,7 @@ public class MethodInsnTransformer {
         methodVisitor.visitVarInsn(ALOAD, 0);
         methodVisitor.visitFieldInsn(GETFIELD,  taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
         // 栈顶的对象在此使用，调用onComplete后，栈顶存在一个新的Future对象
-        methodVisitor.visitMethodInsn(INVOKEINTERFACE, FUTURE_INTERFACE_NAME, "onComplete", "(Lio/vertx/core/Handler;)Lio/vertx/core/Future;", true);
+        methodVisitor.visitMethodInsn(INVOKEINTERFACE, FUTURE_INTERFACE_NAME, FUTURE_ON_COMPLETE_METHOD_NAME, FUTURE_ON_COMPLETE_METHOD_DESC, true);
         // 丢失掉新的Future对象
         methodVisitor.visitInsn(POP);
     }
@@ -229,14 +229,14 @@ public class MethodInsnTransformer {
         Label elseLabel = new Label();
         methodVisitor.visitVarInsn(ALOAD, 0);
         methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
-        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, "succeeded", "()Z", false);
+        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, HANDLER_SUCCEEDED_METHOD_NAME, HANDLER_SUCCEEDED_METHOD_DESC, false);
         methodVisitor.visitJumpInsn(IFEQ, elseLabel);
         // max1 stack0
 
         // 成功后执行
         methodVisitor.visitVarInsn(ALOAD, 0);
         methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
-        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, "getResult", "()Ljava/lang/Object;", false);
+        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, HANDLER_GET_RESULT_METHOD_NAME, HANDLER_GET_RESULT_METHOD_DESC, false);
         methodVisitor.visitJumpInsn(GOTO, toLabel);
         // max1 stack1
 
@@ -244,7 +244,7 @@ public class MethodInsnTransformer {
         methodVisitor.visitLabel(elseLabel);
         methodVisitor.visitVarInsn(ALOAD, 0);
         methodVisitor.visitFieldInsn(GETFIELD, taskClassName, handlerPropertyName, HANDLER_FIELD_DESC);
-        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, "getThrowable", "()Ljava/lang/Throwable;", false);
+        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, HANDLER_CLASS_NAME, HANDLER_GET_THROWABLE_METHOD_NAME, HANDLER_GET_THROWABLE_METHOD_DESC, false);
         methodVisitor.visitInsn(ATHROW);
         methodVisitor.visitLabel(toLabel);
         // max1 stack0
@@ -256,7 +256,7 @@ public class MethodInsnTransformer {
         methodVisitor.visitVarInsn(ALOAD, 0);
         methodVisitor.visitFieldInsn(GETFIELD, taskClassName, futurePropertyName, FUTURE_FIELD_DESC);
         methodVisitor.visitVarInsn(ALOAD, 2);
-        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, FUTURE_CLASS_NAME, "tryFail", "(Ljava/lang/Throwable;)Z", false);
+        methodVisitor.visitMethodInsn(INVOKEVIRTUAL, FUTURE_CLASS_NAME, FUTURE_TRY_FAIL_METHOD_NAME, FUTURE_TRY_FAIL_METHOD_DESC, false);
         methodVisitor.visitInsn(POP);
         methodVisitor.visitInsn(RETURN);
     }

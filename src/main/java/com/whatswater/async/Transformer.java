@@ -614,8 +614,8 @@ public class Transformer {
         methodVisitor.visitMethodInsn(
             INVOKEVIRTUAL,
             FUTURE_CLASS_NAME,
-            "tryComplete",
-            "(Ljava/lang/Object;)Z",
+            FUTURE_CLASS_TRY_COMPLETE_METHOD_NAME,
+            FUTURE_CLASS_TRY_COMPLETE_METHOD_DESC,
             false
         );
         methodVisitor.visitInsn(POP);

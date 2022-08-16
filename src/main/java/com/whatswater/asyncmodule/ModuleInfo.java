@@ -342,7 +342,7 @@ public class ModuleInfo implements Comparable<ModuleInfo> {
         providers.put(record, state);
     }
 
-    Module getModuleInstance() {
+    public Module getModuleInstance() {
         return this.moduleInstance;
     }
 

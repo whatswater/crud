@@ -1,9 +1,15 @@
 package com.whatswater.curd;
 
 
+import com.whatswater.asyncmodule.Module;
+import com.whatswater.asyncmodule.ModuleFactory;
+import com.whatswater.asyncmodule.ModuleSystem;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Starter {
     public static void main(String[] args) {
@@ -30,5 +36,24 @@ public class Starter {
         options.setConfig(config);
         Vertx vertx = Vertx.vertx();
         vertx.deployVerticle(MainVerticle.class.getName(), options);
+    }
+
+    public static ModuleSystem loadModuleSystem(Vertx vertx, JsonObject config) {
+        GlobalModule module = new GlobalModule();
+        module.setConfig(config);
+        module.setVertx(vertx);
+
+        ModuleSystem moduleSystem = new ModuleSystem(9);
+        ModuleFactory moduleFactory = new NewInstanceModuleFactory(new ParentClassLoaderProxy());
+        boolean success = moduleSystem.registerModuleFactory(moduleFactory);
+        if (!success) {
+            System.out.println("....");
+        }
+
+        Map<String, Module> baseModules = new TreeMap<>();
+        baseModules.put("init:global", module);
+        moduleSystem.loadInitModule(baseModules);
+
+        return moduleSystem;
     }
 }

@@ -2,6 +2,7 @@ package com.whatswater.nothing.data;
 
 
 import com.whatswater.nothing.property.Properties;
+import com.whatswater.nothing.property.Property;
 import com.whatswater.nothing.schema.DbSchema;
 import com.whatswater.sql.dialect.Dialect;
 import com.whatswater.sql.dialect.Dialect.SQL;
@@ -38,8 +39,8 @@ public class DbSchemaDataService implements SchemaDataService {
             for (Row row: rows) {
                 Object[] data = new Object[properties.properties().size()];
                 for (int i = 0; i < properties.properties().size(); i++) {
-//                    Property<?> property = properties.properties().get(i);
-//                    String dataType = property.getDataType();
+                    Property<?> property = properties.properties().get(i);
+                    String dataType = property.getDataType();
 //                    data[i] = row.get(String.class, i + 1);
                     data[i] = row.getValue(i + 1);
                 }

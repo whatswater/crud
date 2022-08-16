@@ -29,6 +29,7 @@ public class NewInstanceModuleFactory implements ModuleFactory {
         return moduleClass.getConstructor().newInstance();
     }
 
+    public static final String MODULE_PATH_SHELL = "NewInstance:com.whatswater.curd.shell.ShellModule:0.1";
     public static final String MODULE_PATH_MENU = "NewInstance:com.whatswater.curd.project.sys.menu.MenuModule:0.1";
     public static final String MODULE_PATH_TODO = "NewInstance:com.whatswater.curd.project.module.todo.TodoModule:0.1";
     public static final String MODULE_PATH_OPINION = "NewInstance:com.whatswater.curd.project.module.opinion.OpinionModule:0.1";

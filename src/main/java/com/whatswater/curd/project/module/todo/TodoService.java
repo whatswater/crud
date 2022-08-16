@@ -18,6 +18,7 @@ import com.whatswater.curd.project.module.workflow.flowLink.FlowLink;
 import com.whatswater.curd.project.sys.employee.Employee;
 import com.whatswater.curd.project.sys.employee.EmployeeService;
 import com.whatswater.curd.project.sys.uid.UidGeneratorService;
+import com.whatswater.sql.executor.ContextService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.sql.assist.SqlAssist;
@@ -28,7 +29,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-public class TodoService {
+public class TodoService implements ContextService<TodoService> {
     private UidGeneratorService uidGeneratorService;
     private TodoSQL todoSQL;
     private FlowEngineService flowEngineService;

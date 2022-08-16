@@ -14,6 +14,7 @@ public class ModuleSystem {
     public static final String MODULE_PATH_SPLIT = ":";
     public static final String MODULE_PATH_GLOBAL = "module-system:global";
     public static final String EMPTY = "";
+    public static final Object DEFAULT_OBJ = new Object();
 
     private final Map<String, ModuleFactory> moduleFactoryMap = new ConcurrentHashMap<>();
     private final Map<String, ModuleInfo> moduleInfoMap = new ConcurrentHashMap<>();
@@ -51,11 +52,11 @@ public class ModuleSystem {
         executor.submitTask(consumer, eventList);
     }
 
-    public void loadModule(String modulePath) {
-        getOrCreateModuleInfo(modulePath);
+    public ModuleInfo loadModule(String modulePath) {
+        return getOrCreateModuleInfo(modulePath);
     }
 
-    public void loadModule(String modulePath, Map<String, Module> baseModules) {
+    public ModuleInfo loadModule(String modulePath, Map<String, Module> baseModules) {
         this.globalModuleInfo = new ModuleInfo(MODULE_PATH_GLOBAL, new Module() {
             @Override
             public void register(ModuleInfo moduleInfo) {
@@ -68,15 +69,19 @@ public class ModuleSystem {
             }
         }, this);
 
-        for (Map.Entry<String, Module> entry: baseModules.entrySet()) {
+        loadInitModule(baseModules);
+        return getOrCreateModuleInfo(modulePath);
+    }
+
+    public void loadInitModule(Map<String, Module> initModules) {
+        for (Map.Entry<String, Module> entry: initModules.entrySet()) {
             String path = entry.getKey();
             Module instance = entry.getValue();
 
             ModuleInfo moduleInfo = new ModuleInfo(path, instance, this);
             moduleInfoMap.put(path, moduleInfo);
-            submitModuleEvent(moduleInfo, Collections.singletonList(new RequireResolvedEvent(moduleInfo, this.globalModuleInfo, "load", EMPTY)));
+            submitModuleEvent(moduleInfo, Collections.singletonList(new RequireResolvedEvent(moduleInfo, this.globalModuleInfo, DEFAULT_NAME, EMPTY)));
         }
-        getOrCreateModuleInfo(modulePath);
     }
 
 

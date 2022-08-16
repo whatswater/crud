@@ -1,5 +1,6 @@
 package com.whatswater.curd;
 
+import com.whatswater.asyncmodule.factory.ImageResourceModuleFactory;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
@@ -29,7 +30,9 @@ public class MainVerticle extends AbstractVerticle {
 
         ModuleSystem moduleSystem = new ModuleSystem(9);
         ModuleFactory moduleFactory = new NewInstanceModuleFactory(new ParentClassLoaderProxy());
+        ImageResourceModuleFactory imageModuleFactory = new ImageResourceModuleFactory("D:\\");
         moduleSystem.registerModuleFactory(moduleFactory);
+        moduleSystem.registerModuleFactory(imageModuleFactory);
 
         Map<String, Module> baseModules = new TreeMap<>();
         baseModules.put("init:global", module);

@@ -9,6 +9,7 @@ import com.whatswater.curd.project.common.Page;
 import com.whatswater.curd.project.common.PageResult;
 import com.whatswater.curd.project.module.projectReward.projectRewardApply.ProjectRewardApply;
 import com.whatswater.curd.project.module.workflow.flowLink.FlowLink;
+import com.whatswater.sql.executor.ContextService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.sql.assist.SQLExecute;
@@ -20,7 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class OrganizationService {
+public class OrganizationService implements ContextService<OrganizationService> {
     private final OrganizationSQL organizationSQL;
 
     public OrganizationService(MySQLPool pool) {

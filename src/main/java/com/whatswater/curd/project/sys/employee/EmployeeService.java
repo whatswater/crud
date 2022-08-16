@@ -8,7 +8,6 @@ import com.whatswater.curd.project.common.Page;
 import com.whatswater.curd.project.common.PageResult;
 import com.whatswater.curd.project.sys.organization.Organization;
 import com.whatswater.curd.project.sys.organization.OrganizationService;
-import com.whatswater.sql.executor.TransactionService;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
@@ -23,7 +22,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 
-public class EmployeeService implements TransactionService<EmployeeService> {
+public class EmployeeService implements IEmployeeService {
     private final EmployeeSQL employeeSQL;
     private OrganizationService organizationService;
 
@@ -45,6 +44,7 @@ public class EmployeeService implements TransactionService<EmployeeService> {
         this.organizationService = organizationService;
     }
 
+    @Override
     public Future<PageResult<EmployeeListVo>> search(Page page, EmployeeQuery query) {
         SqlAssist sqlAssist = query.toSqlAssist();
         sqlAssist.setStartRow(page.getOffset());
@@ -113,6 +113,7 @@ public class EmployeeService implements TransactionService<EmployeeService> {
         });
     }
 
+    @Override
     public Future<Employee> getById(long id) {
         Future<JsonObject> result = employeeSQL.selectById(id);
         return result.map(json -> {
@@ -123,6 +124,7 @@ public class EmployeeService implements TransactionService<EmployeeService> {
         });
     }
 
+    @Override
     public Future<List<Employee>> listByIds(List<Long> ids) {
         if (CollectionUtil.isEmpty(ids)) {
             return Future.succeededFuture(Collections.emptyList());
@@ -136,6 +138,7 @@ public class EmployeeService implements TransactionService<EmployeeService> {
         });
     }
 
+    @Override
     public Future<Employee> getByLoginName(String loginName) {
         Employee employee = new Employee();
         employee.setLoginName(loginName);
@@ -175,6 +178,7 @@ public class EmployeeService implements TransactionService<EmployeeService> {
         });
     }
 
+    @Override
     public Future<Long> fillAndInsertWithCheck(Employee employee) {
         return getByLoginName(employee.getLoginName()).compose(old -> {
             if (old != null) {
@@ -256,5 +260,13 @@ public class EmployeeService implements TransactionService<EmployeeService> {
 
     public void setOrganizationService(OrganizationService organizationService) {
         this.organizationService = organizationService;
+    }
+
+    public EmployeeSQL getEmployeeSQL() {
+        return employeeSQL;
+    }
+
+    public OrganizationService getOrganizationService() {
+        return organizationService;
     }
 }

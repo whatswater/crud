@@ -11,7 +11,6 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.RequestOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import com.whatswater.asyncmodule.Module;
@@ -19,7 +18,6 @@ import com.whatswater.asyncmodule.ModuleInfo;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.FaviconHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import javax.ws.rs.core.MediaType;
@@ -39,6 +37,7 @@ public class HttpServerModule implements Module {
     @Override
     public void register(ModuleInfo moduleInfo) {
         moduleInfo.require("init:global", "config", "startPromise", "vertx");
+        moduleInfo.require("image:81d1aac379310a5566c1439eb44543a9802610de.jpg");
         moduleInfo.require(NewInstanceModuleFactory.MODULE_PATH_PERMISSION, "permissionCheckHandler");
     }
 

@@ -3,6 +3,7 @@ package com.whatswater.sql.executor;
 
 import com.whatswater.curd.project.sys.employee.EmployeeService;
 import org.objectweb.asm.*;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.io.IOException;
 
@@ -12,6 +13,17 @@ public class SqlSessionAopFactory {
     public static final char CLASS_NAME_SPLIT_CHAR = '/';
     public static final String SUFFIX_ENHANCE = "$$Enhance$$";
     public static final String SUFFIX_ENHANCE_JAVA = SUFFIX_ENHANCE + ".java";
+
+    /**
+     * 找到某个方法的所有引用
+     */
+    public static void findMethodServiceReference(MethodNode methodNode) {
+        // 1、getField
+        // 2、lambda方法
+        // 3、父类的getField
+        // 4、调用的本类的其他方法
+        // 5、调用的父类的其他方法
+    }
 
     public static byte[] enhanceTransactionServiceClass(String path) throws IOException {
         ClassInfo classInfo = ClassInfo.getClassInfo(path);

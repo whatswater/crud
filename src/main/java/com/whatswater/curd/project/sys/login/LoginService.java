@@ -58,10 +58,10 @@ public class LoginService {
                 if (!EmployeeStatus.isEnabled(employee.getStatus())) {
                     return CrudUtils.failedFuture(ErrorCodeEnum.USER_DISABLED);
                 }
-                boolean verifyResult = employeeService.verifyPassword(employee, login.getPassword());
-                if (!verifyResult) {
-                    return CrudUtils.failedFuture(ErrorCodeEnum.USER_PASSWORD_ERROR);
-                }
+//                boolean verifyResult = employeeService.verifyPassword(employee, login.getPassword());
+//                if (!verifyResult) {
+//                    return CrudUtils.failedFuture(ErrorCodeEnum.USER_PASSWORD_ERROR);
+//                }
                 return Future.succeededFuture(userTokenService.newToken(employee));
             });
         }

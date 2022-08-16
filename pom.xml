@@ -172,6 +172,12 @@
             <artifactId>asm-analysis</artifactId>
             <version>9.3</version>
         </dependency>
+        <dependency>
+            <groupId>io.reactivex.rxjava3</groupId>
+            <artifactId>rxjava</artifactId>
+            <version>3.1.4</version>
+        </dependency>
+
 
         <dependency>
             <groupId>junit</groupId>

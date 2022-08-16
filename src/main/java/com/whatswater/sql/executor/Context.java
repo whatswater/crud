@@ -1,5 +1,6 @@
 package com.whatswater.sql.executor;
 
 
-public class SqlSession {
+public class Context {
+    
 }

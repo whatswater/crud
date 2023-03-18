@@ -28,6 +28,10 @@ public class PermissionCheckHandler implements Handler<RoutingContext> {
             rc.next();
             return;
         }
+        if (path.startsWith("/shell/")) {
+            rc.next();
+            return;
+        }
 
         String token = rc.request().getHeader(CrudConst.HEADER_TOKEN);
         if (StrUtil.isEmpty(token)) {

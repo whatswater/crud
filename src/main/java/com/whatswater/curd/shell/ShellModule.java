@@ -3,9 +3,9 @@ package com.whatswater.curd.shell;
 import com.whatswater.asyncmodule.AbstractModuleAdaptor;
 import com.whatswater.asyncmodule.util.Key;
 import io.vertx.core.Vertx;
-import io.vertx.ext.shell.ShellService;
-import io.vertx.ext.shell.ShellServiceOptions;
-import io.vertx.ext.shell.term.HttpTermOptions;
+import io.vertx.ext.shell.ShellServer;
+import io.vertx.ext.shell.command.CommandResolver;
+import io.vertx.ext.shell.term.TermServer;
 import io.vertx.ext.web.Router;
 
 
@@ -30,13 +30,16 @@ public class ShellModule extends AbstractModuleAdaptor {
     }
 
     public void createShellService(Vertx vertx, Router router) {
-        ShellService service = ShellService.create(vertx,
-            new ShellServiceOptions().setHttpOptions(
-                new HttpTermOptions().
-                    setHost("localhost").
-                    setPort(5000)
-            )
-        );
-        service.start();
+        ModuleCommandPack moduleCommandPack = new ModuleCommandPack();
+        moduleCommandPack.resolver(vertx, result -> {
+            ShellServer shellServer = ShellServer.create(vertx);
+            Router shellRouter = Router.router(vertx);
+            router.route("/shell/*").subRouter(shellRouter);
+            TermServer httpTermServer = TermServer.createHttpTermServer(vertx, shellRouter);
+            shellServer.registerTermServer(httpTermServer);
+            shellServer.registerCommandResolver(CommandResolver.baseCommands(vertx));
+            shellServer.registerCommandResolver(result.result());
+            shellServer.listen();
+        });
     }
 }

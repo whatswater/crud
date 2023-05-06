@@ -5,5 +5,5 @@ import com.whatswater.orm.schema.Schema;
 import java.util.List;
 
 public class UnionView<T> {
-    private List<Schema<T>> schemaList;
+    private List<Schema> schemaList;
 }

@@ -11,11 +11,11 @@ public abstract class SchemaUtil {
         return s == null || s.length() == 0;
     }
 
-    public static String getSchemaId(Schema<?> schema) {
-        return schema.moduleName() + "/" + schema.schemaName();
+    public static String getSchemaId(Schema schema) {
+        return schema.moduleName() + "|" + schema.schemaName();
     }
 
-    public static String getSchemaTypeDescription(Schema<?> schema) {
+    public static String getSchemaTypeDescription(Schema schema) {
         return "schema " + getSchemaId(schema);
     }
 }

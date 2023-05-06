@@ -3,15 +3,20 @@ package com.whatswater.orm.field;
 import com.whatswater.orm.schema.Schema;
 import com.whatswater.orm.util.SchemaUtil;
 
-
+// 外键引用
 public class ForeignKeyField implements Field {
-    private Schema<?> schema;
+    private Schema schema;
     private String propertyName;
-    private Schema<?> fkSchema;
+    private Schema fkSchema;
     private String fkPropertyName;
 
     @Override
-    public Schema<?> getSchema() {
+    public FieldType type() {
+        return FieldType.FOREIGN_KEY;
+    }
+
+    @Override
+    public Schema getSchema() {
         return schema;
     }
 
@@ -25,7 +30,7 @@ public class ForeignKeyField implements Field {
         return propertyName;
     }
 
-    public Schema<?> getFkSchema() {
+    public Schema getFkSchema() {
         return fkSchema;
     }
 

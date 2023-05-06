@@ -1,11 +1,8 @@
 package com.whatswater.orm.schema;
 
 
-import com.whatswater.orm.field.Field;
-import com.whatswater.orm.field.list.BasicFieldList;
+import com.whatswater.orm.data.id.DataId;
 import com.whatswater.orm.field.list.FieldList;
-import com.whatswater.orm.schema.index.Index;
-import com.whatswater.orm.util.MetaKey;
 
 import java.util.List;
 
@@ -17,7 +14,7 @@ import java.util.List;
 // 除了Schema之外，应当存在另外一种表示数据结构的方式，通过SchemaData和SchemaDataList转换而来（只读），Schema依赖于存储，其他的不依赖存储，是否需要在schema中定义索引
 // Schema除了是list外，还可以是map和标量
 // Property应当不包含泛型，Properties包含泛型
-public interface Schema<T> {
+public interface Schema {
     /**
      * 所在的模块名称，模块名称是模块的唯一ID
      * @return 模块名称
@@ -31,27 +28,26 @@ public interface Schema<T> {
     String schemaName();
 
     /**
+     * 当前schema引用的其他schema
+     * @return schema列表
+     */
+    List<Schema> refSchemaList();
+
+    /**
+     * 当前schema监听的其他schema列表
+     * @return schema列表
+     */
+    List<Schema> listenSchemaList();
+
+    /**
+     * 获取数据的主键值
+     * @return 主键
+     */
+    DataId getPrimaryKeyValue(Object data);
+
+    /**
      * 字段列表
      * @return 字段列表
      */
     FieldList fieldList();
-
-    /**
-     * 根据字段名获取一个字段
-     * @param name 字段名
-     * @return 字段配置
-     */
-    Field findField(String name);
-    Field findField(String name, String type);
-
-    /**
-     * 根据metaKey获取索引
-     * @return 索引
-     */
-    <S extends Index> S getIndex(MetaKey<S> metaKey);
-
-    interface SchemaMatchRule<T> {
-        Schema<T> match(List<Schema<T>> schemaList, T data);
-        Schema<T> match(List<Schema<T>> schemaList, Object[] schemaData);
-    }
 }

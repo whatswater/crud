@@ -4,7 +4,7 @@ package com.whatswater.orm.util;
 import java.util.Objects;
 
 public class MetaKey<T> implements Comparable<MetaKey<?>> {
-    private String name;
+    private final String name;
     private MetaKey(String name) {
         this.name = name;
     }

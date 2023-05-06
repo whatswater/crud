@@ -1,14 +1,11 @@
 package com.whatswater.orm.action;
 
+import com.whatswater.orm.state.ComputeFieldUpdater;
+import com.whatswater.orm.util.MetaKey;
 
-// TODO 添加缓存
-// TODO 添加事务
-public class ActionContext {
-    public <R> R addAction(Action<R> action) {
-        return null;
-    }
-
-    public Object getActionResult() {
-        return null;
-    }
+public interface ActionContext {
+    <T> void put(MetaKey<T> key, T value);
+    <T> T get(MetaKey<T> key);
+    void logAction(Action action);
+    ComputeFieldUpdater getOrCreateUpdater();
 }

@@ -1,4 +1,9 @@
 package com.whatswater.orm.action;
 
-public interface Action<R> {
+import com.whatswater.orm.operation.Operation;
+
+import java.util.List;
+
+public interface Action {
+    List<Operation> operationList();
 }

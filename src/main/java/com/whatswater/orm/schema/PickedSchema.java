@@ -1,22 +1,22 @@
 package com.whatswater.orm.schema;
 
-import com.whatswater.orm.field.Field;
+import com.whatswater.orm.data.id.DataId;
 import com.whatswater.orm.field.list.FieldList;
 import com.whatswater.orm.field.list.PickedFieldList;
-import com.whatswater.orm.schema.index.Index;
-import com.whatswater.orm.util.MetaKey;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
-public class PickedSchema<R, T> implements Schema<R> {
+public class PickedSchema implements Schema {
     private final String moduleName;
     private final String schemaName;
-    private FieldList fieldList;
-    private Schema<T> baseSchema;
+    private final FieldList fieldList;
+    private final Schema baseSchema;
 
     public PickedSchema(
         String name,
-        Schema<T> baseSchema,
+        Schema baseSchema,
         Set<String> pickPropertyNames
     ) {
         this.baseSchema = baseSchema;
@@ -36,22 +36,22 @@ public class PickedSchema<R, T> implements Schema<R> {
     }
 
     @Override
+    public List<Schema> refSchemaList() {
+        return Collections.singletonList(baseSchema);
+    }
+
+    @Override
+    public List<Schema> listenSchemaList() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public DataId getPrimaryKeyValue(Object data) {
+        return null;
+    }
+
+    @Override
     public FieldList fieldList() {
         return fieldList;
-    }
-
-    @Override
-    public Field findField(String name) {
-        return fieldList.findProperty(name);
-    }
-
-    @Override
-    public Field findField(String name, String type) {
-        return null;
-    }
-
-    @Override
-    public <S extends Index> S getIndex(MetaKey<S> metaKey) {
-        return null;
     }
 }

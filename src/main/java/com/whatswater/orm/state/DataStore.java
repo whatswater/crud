@@ -1,36 +1,51 @@
 package com.whatswater.orm.state;
 
-import com.whatswater.orm.action.Action;
 import com.whatswater.orm.schema.Schema;
+import com.whatswater.orm.schema.SchemaManager;
 import com.whatswater.orm.util.SchemaUtil;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DataStore {
-    private Map<String, Schema<?>> schemaMap;
-    private Map<String, SchemaService<?>> schemaDataListServiceMap;
-    private Map<String, SchemaListener> schemaListenerMap;
+    private SchemaManager schemaManager;
+    private Map<String, SchemaService> schemaDataListServiceMap;
 
-    public void installSchema(Schema<?> schema) {
-        String schemaId = SchemaUtil.getSchemaId(schema);
-        schemaMap.put(schemaId, schema);
-        schemaDataListServiceMap.put(schemaId, createSchemaService(schema));
-        schemaListenerMap.put(schemaId, new SchemaListener(schema));
+    public void installSchema(final Schema schema) {
+        String schemaId = schemaManager.addOneSchema(schema);
+        AtomicBoolean flag = new AtomicBoolean(false);
+        SchemaService schemaService = schemaDataListServiceMap.computeIfAbsent(schemaId, key -> {
+            flag.set(true);
+            return createSchemaService(schema);
+        });
+        if (flag.get()) {
+            return;
+        }
+
+        List<Schema> refs = schema.refSchemaList();
+        for(Schema ref : refs) {
+            installSchema(ref);
+        }
+
+        // listenList是refs的子集
+        List<Schema> listenList = schema.listenSchemaList();
+        for(Schema listen : listenList) {
+            addListener(schemaService, listen);
+        }
     }
 
-    public void dispatchAction(Schema<?> schema, Action<?> action) {
-        String schemaId = SchemaUtil.getSchemaId(schema);
-        SchemaListener schemaListener = schemaListenerMap.get(schemaId);
-        schemaListener.onAction();
+    private void addListener(SchemaService consumeService, Schema productSchema) {
+        SchemaService productSchemaService = getSchemaService(productSchema);
+        productSchemaService.addListener(consumeService);
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> SchemaService<T> getService(Schema<T> schema) {
+    public SchemaService getSchemaService(Schema schema) {
         String schemaId = SchemaUtil.getSchemaId(schema);
-        return (SchemaService<T>)schemaDataListServiceMap.get(schemaId);
+        return schemaDataListServiceMap.get(schemaId);
     }
 
-    private SchemaService<?> createSchemaService(Schema<?> schema) {
-        return new SchemaService<>(schema, this);
+    private SchemaService createSchemaService(Schema schema) {
+        return new SchemaService(schema, this);
     }
 }

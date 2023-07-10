@@ -10,7 +10,7 @@ public class QueryDSL<Q> {
     // 查询的schema
     private Schema schema;
     // 查询条件，修改为树形结构
-    QueryParam queryParam;
+    QueryCriteria queryCriteria;
 
     public ResultMapper<Q> getResultMapper() {
         return resultMapper;
@@ -28,11 +28,11 @@ public class QueryDSL<Q> {
         this.schema = schema;
     }
 
-    public QueryParam getQueryParam() {
-        return queryParam;
+    public QueryCriteria getQueryParam() {
+        return queryCriteria;
     }
 
-    public void setQueryParam(QueryParam queryParam) {
-        this.queryParam = queryParam;
+    public void setQueryParam(QueryCriteria queryParam) {
+        this.queryCriteria = queryParam;
     }
 }

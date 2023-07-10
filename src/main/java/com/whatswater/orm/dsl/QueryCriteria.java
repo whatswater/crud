@@ -2,6 +2,7 @@ package com.whatswater.orm.dsl;
 
 import com.whatswater.orm.dsl.criteria.And;
 import com.whatswater.orm.dsl.criteria.Or;
+import com.whatswater.sql.expression.BoolExpression;
 
 import java.util.ArrayList;
 import java.util.Arrays;

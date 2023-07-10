@@ -10,6 +10,9 @@ import com.whatswater.orm.operation.OperationHandler;
 import com.whatswater.orm.operation.OperationInsert;
 import com.whatswater.orm.operation.OperationUpdate;
 import com.whatswater.orm.operation.OperationUpdateById;
+import com.whatswater.orm.schema.BasicSchema;
+import com.whatswater.orm.schema.Schema;
+import com.whatswater.sql.table.DbTable;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
@@ -80,6 +83,13 @@ public class MysqlStorageService implements AsyncStorageService {
         // resultMapper获取值
         // 事务管理器获取当前mysql连接
         // 将值设置到handler中
+        Schema schema = query.getSchema();
+
+        // 按类型划分schenma
+        BasicSchema basicSchema = (BasicSchema) schema;
+
+        // DbTable<?> dbTable = new DbTable<>();
+        // dbTable.where();
     }
 
     @Override

@@ -13,4 +13,8 @@ public class Not implements QueryCriteria {
     public QueryCriteria flatten() {
         return this;
     }
+
+    public QueryCriteria getQueryCriteria() {
+        return queryCriteria;
+    }
 }

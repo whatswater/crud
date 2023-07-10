@@ -7,7 +7,14 @@ import com.whatswater.sql.expression.LogicExpression;
 public class NotExpression implements LogicExpression {
     private Expression expression;
 
+    public NotExpression() {
+    }
+
     public NotExpression(Expression expression) {
+        this.expression = expression;
+    }
+
+    public void setExpression(Expression expression) {
         this.expression = expression;
     }
 
